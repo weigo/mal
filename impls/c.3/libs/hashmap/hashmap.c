@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hashmap.h"
+#include "../../gc.h"
 
 /**
  * Base on https://benhoyt.com/writings/hash-table-in-c/
@@ -13,7 +14,7 @@
 
 HashMap *make_hashmap()
 {
-    HashMap *map = (HashMap *)malloc(sizeof(HashMap));
+    HashMap *map = (HashMap *)mal_malloc(sizeof(HashMap));
 
     if (map == NULL)
     {
@@ -23,7 +24,7 @@ HashMap *make_hashmap()
     map->length = 0;
     map->capacity = INITIAL_CAPACITY;
 
-    map->entries = calloc(map->capacity, sizeof(MapEntry));
+    map->entries = mal_calloc(map->capacity, sizeof(MapEntry));
 
     if (map->entries == NULL)
     {

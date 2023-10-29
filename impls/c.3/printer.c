@@ -306,15 +306,15 @@ MalValue *print_values(MalCell *values)
     return print_values_internal(values, "", false);
 }
 
-void print(FILE *stream, MalValue *value, bool readably)
-{
-    fprintf(stream, pr_str(value, readably));
-}
-
 MalValue *println(MalCell *values)
 {
     MalValue *result = print_values_internal(values, " ", false);
     fprintf(output_stream, "%s\n", result->value);
 
     return &MAL_NIL;
+}
+
+void print(FILE *stream, MalValue *value, bool readably)
+{
+    fprintf(stream, pr_str(value, readably));
 }

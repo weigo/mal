@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "env.h"
 #include "gc.h"
+#include "printer.h"
 
 void free_environment(MalEnvironment *environment)
 {
