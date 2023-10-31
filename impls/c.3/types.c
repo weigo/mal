@@ -78,10 +78,30 @@ MalValue *make_error(char *fmt, ...)
     return make_value(MAL_ERROR, message);
 }
 
+#define FIXNUM_CACHE_SIZE 256
+MalValue *FIXNUM_CACHE[FIXNUM_CACHE_SIZE];
+
 MalValue *make_fixnum(int64_t number)
 {
-    MalValue *value = new_value(MAL_FIXNUM);
+    MalValue *value = NULL;
+
+    if (number >= 0 && number <= FIXNUM_CACHE_SIZE)
+    {
+        value = FIXNUM_CACHE[number];
+
+        if (value)
+        {
+            return value;
+        }
+    }
+
+    value = new_value(MAL_FIXNUM);
     value->fixnum = number;
+
+    if (number >= 0 && number <= FIXNUM_CACHE_SIZE)
+    {
+        FIXNUM_CACHE[number] = value;
+    }
 
     return value;
 }
