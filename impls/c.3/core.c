@@ -3,13 +3,17 @@
 #include "core.h"
 #include "env.h"
 #include "printer.h"
+#include "reader.h"
 #include "types.h"
+#include "gc.h"
 
 extern FILE *output_stream;
 
 bool is_equal_by_type(MalValue *left, MalValue *right);
 bool is_equal(MalValue *left, MalValue *right);
 bool are_lists_equal(MalCell *left, MalCell *right);
+
+MalEnvironment *global_environment;
 
 MalValue *add(MalCell *values)
 {
@@ -332,6 +336,76 @@ MalValue *equals(MalCell *values)
     return &MAL_FALSE;
 }
 
+MalValue *read_string(MalCell *values)
+{
+
+    if (!values || values->value->valueType != MAL_STRING)
+    {
+        return make_error("Invalid argument!");
+    }
+
+    Reader reader = {.input = values->value->value};
+    Token token = {};
+    reader.token = &token;
+
+    return read_str(&reader);
+}
+
+char *read_file(const char *file_name)
+{
+    FILE *stream = fopen(file_name, "r");
+    char *buffer = (char *)NULL;
+    int len = 0;
+    size_t bytes_read;
+
+    if (stream)
+    {
+        fseek(stream, 0, SEEK_END);
+        len = ftell(stream);
+        fseek(stream, 0, SEEK_SET);
+
+        buffer = mal_malloc(len + 1);
+        bytes_read = fread(buffer, 1, len, stream);
+        fclose(stream);
+
+        if (bytes_read != len)
+        {
+            free(buffer);
+            buffer = NULL;
+        }
+        else
+        {
+            buffer[len + 1] = '\0';
+        }
+    }
+
+    return buffer;
+}
+
+MalValue *slurp(MalCell *values)
+{
+    if (!values || values->value->valueType != MAL_STRING)
+    {
+        return make_error("Invalid argument!");
+    }
+
+    char *contents = read_file(values->value->value);
+
+    if (!contents)
+    {
+        return make_error("Could not read '%s'", values->value->value);
+    }
+
+    return make_string(contents, false);
+}
+
+extern MalValue *EVAL(MalValue *value, MalEnvironment *environment);
+
+MalValue *eval(MalCell *values)
+{
+    return EVAL(values->value, global_environment);
+}
+
 HashMap *core_namespace()
 {
 
@@ -341,6 +415,22 @@ HashMap *core_namespace()
     hashmap_put(ns, "-", new_function(subtract));
     hashmap_put(ns, "*", new_function(multiply));
     hashmap_put(ns, "/", new_function(divide));
+    hashmap_put(ns, "prn", new_function(prn));
+    hashmap_put(ns, "println", new_function(println));
+    hashmap_put(ns, "pr-str", new_function(print_values_readably));
+    hashmap_put(ns, "str", new_function(print_values));
+    hashmap_put(ns, "list", new_function(list));
+    hashmap_put(ns, "list?", new_function(list_p));
+    hashmap_put(ns, "empty?", new_function(empty_p));
+    hashmap_put(ns, "count", new_function(count));
+    hashmap_put(ns, ">", new_function(greater_than));
+    hashmap_put(ns, ">=", new_function(greater_than_or_equal_to));
+    hashmap_put(ns, "<", new_function(less_than));
+    hashmap_put(ns, "<=", new_function(less_than_or_equal_to));
+    hashmap_put(ns, "=", new_function(equals));
+    hashmap_put(ns, "read-string", new_function(read_string));
+    hashmap_put(ns, "slurp", new_function(slurp));
+    hashmap_put(ns, "eval", new_function(eval));
 
     return ns;
 }
@@ -357,19 +447,6 @@ MalEnvironment *make_initial_environment()
         set_in_environment(environment, make_value(MAL_SYMBOL, it.key), it.value);
     }
 
-    set_in_environment(environment, make_value(MAL_SYMBOL, "prn"), new_function(prn));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "println"), new_function(println));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "pr-str"), new_function(print_values_readably));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "str"), new_function(print_values));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "list"), new_function(list));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "list?"), new_function(list_p));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "empty?"), new_function(empty_p));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "count"), new_function(count));
-    set_in_environment(environment, make_value(MAL_SYMBOL, ">"), new_function(greater_than));
-    set_in_environment(environment, make_value(MAL_SYMBOL, ">="), new_function(greater_than_or_equal_to));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "<"), new_function(less_than));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "<="), new_function(less_than_or_equal_to));
-    set_in_environment(environment, make_value(MAL_SYMBOL, "="), new_function(equals));
     set_in_environment(environment, &MAL_NIL, &MAL_NIL);
     set_in_environment(environment, &MAL_TRUE, &MAL_TRUE);
     set_in_environment(environment, &MAL_FALSE, &MAL_FALSE);
