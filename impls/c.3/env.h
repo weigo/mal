@@ -1,8 +1,8 @@
 #ifndef _MAL_ENV_H
 #define _MAL_ENV_H
 
+#include <stdbool.h>
 #include <stdlib.h>
-#include "libs/hashmap/hashmap.h"
 #include "types.h"
 
 MalEnvironment *make_environment(MalEnvironment *parent, MalCell *binds, MalCell *exprs, MalValue *rest_symbol);

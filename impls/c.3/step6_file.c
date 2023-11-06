@@ -97,7 +97,7 @@ MalValue *eval_ast(MalValue *value, MalEnvironment *environment)
 
             if (r)
             {
-                put(h, it.key, r);
+                hashmap_put(h->hashMap, it.keyType, it.key, r);
             }
             else
             {
@@ -348,7 +348,7 @@ void PRINT(MalValue *value)
     fprintf(output_stream, "\n");
 }
 
-void rep(const char *input, MalEnvironment *environment)
+void rep(const char *input, MalEnvironment *environment, bool print_result)
 {
     Reader reader = {.input = input};
     Token token = {};
@@ -360,7 +360,10 @@ void rep(const char *input, MalEnvironment *environment)
     {
         MalValue *result = EVAL(value, environment);
 
-        PRINT(result);
+        if (print_result)
+        {
+            PRINT(result);
+        }
     }
     else
     {
@@ -379,13 +382,32 @@ char *get_history_filename()
 
 int main(int argc, char **argv)
 {
-    char *input = NULL;
     output_stream = stdout;
+    global_environment = make_initial_environment();
+    //    rep("(def! not (fn* (a) (if a false true)))", global_environment, false);
+    //    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\"))))))", global_environment, false);
+    rep(LISP_LIBRARY, global_environment, false);
+ 
+    MalValue *args = make_list(NULL);
+    set_in_environment(global_environment, make_value(MAL_SYMBOL, "*ARGV*"), args);
+
+    if (argc > 1)
+    {
+        for (int i = 2; i < argc; i++)
+        {
+            push(args, make_string(argv[i], false));
+        }
+
+        char buffer[strlen(argv[1]) + 1 + 13];
+        sprintf(buffer, "(load-file \"%s\")\n", argv[1]);
+        rep(buffer, global_environment, false);
+
+        return 0;
+    }
+
+    char *input = NULL;
     char *history_file = get_history_filename();
     _read_history(history_file);
-
-    global_environment = make_initial_environment();
-    rep(LISP_LIBRARY, global_environment);
 
     while (1)
     {
@@ -394,7 +416,7 @@ int main(int argc, char **argv)
         if (input && *input && *input != 0x0)
         {
             _add_history(input);
-            rep(input, global_environment);
+            rep(input, global_environment, true);
         }
         else
         {
@@ -404,4 +426,5 @@ int main(int argc, char **argv)
 
     _save_history(history_file);
     free(history_file);
+    return 0;
 }

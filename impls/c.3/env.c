@@ -58,7 +58,7 @@ bool set_in_environment(MalEnvironment *environment, MalValue *symbol, MalValue 
     assert(symbol->valueType == MAL_SYMBOL);
     MalValue *oldValue = hashmap_get(environment->map, symbol->value);
 
-    hashmap_put(environment->map, symbol->value, value);
+    hashmap_put(environment->map, symbol->valueType, symbol->value, value);
 
     return oldValue != NULL;
 }

@@ -1,9 +1,10 @@
+#include <ctype.h>
 #include <inttypes.h>
+#include <math.h>
 #include <string.h>
 #include "printer.h"
-#include <ctype.h>
 #include "gc.h"
-#include <math.h>
+#include "types.h"
 
 #define INITIAL_LIST_BUFFER_SIZE 64
 extern FILE *output_stream;
@@ -120,6 +121,12 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
     }
     break;
 
+    case MAL_ATOM:
+        mal_strcat(buffer, "(atom ");
+        pr_str_internal(buffer, value->malValue, readably);
+        mal_strcat(buffer, ")");
+        break;
+
     default:
         mal_strcat(buffer, value->value);
         break;
@@ -185,7 +192,7 @@ void print_string(MalPrintBuf *buffer, const char *value, bool readably)
 
             position++;
         }
-        
+
         mal_strcat(buffer, "\"");
     }
     else
@@ -207,14 +214,14 @@ void print_hash_map(MalPrintBuf *buffer, HashMap *hashMap, bool readably)
             mal_strcat(buffer, " ");
         }
 
-        // keys are strings, so one cannot differentiate between keywords and standard strings
-        if (*it.key == ':')
+        if (it.keyType == MAL_STRING)
         {
-            mal_strcat(buffer, it.key);
+            print_string(buffer, it.key, true);
         }
         else
         {
-            print_string(buffer, it.key, false);
+            mal_strcat(buffer, it.key);
+            break;
         }
 
         mal_strcat(buffer, " ");

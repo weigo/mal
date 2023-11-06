@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 #include "error.h"
-#include "libs/hashmap/hashmap.h"
 
 enum MalValueType
 {
+    MAL_ATOM,
     MAL_CLOSURE,
     MAL_COMMENT,
     MAL_ERROR,
@@ -20,6 +20,45 @@ enum MalValueType
     MAL_VECTOR,
     MAL_FUNCTION
 };
+
+typedef struct MapEntry
+{
+    const char *key;
+    enum MalValueType keyType;
+    void *value;
+} MapEntry;
+
+typedef struct HashMap
+{
+    MapEntry *entries;
+    size_t capacity;
+    size_t length;
+} HashMap;
+
+// Hash table iterator: create with ht_iterator, iterate with ht_next.
+typedef struct HashMapIterator
+{
+    const char *key; // current key
+    enum MalValueType keyType;
+    void *value; // current value
+
+    // Don't use these fields directly.
+    HashMap *_map; // reference to hash table being iterated
+    size_t _index; // current index into ht._entries
+} HashMapIterator;
+
+HashMap *make_hashmap();
+void free_hashmap(HashMap *);
+const char *hashmap_put(HashMap *hashMap, enum MalValueType keyType, const char *key, void *value);
+void *hashmap_get(HashMap *hashMap, const char *key);
+
+// Return new hash table iterator (for use with ht_next).
+HashMapIterator hashmap_iterator(HashMap *table);
+
+// Move iterator to next item in hash table, update iterator's key
+// and value to current item, and return true. If there are no more
+// items, return false. Don't call ht_set during iteration.
+bool hashmap_next(HashMapIterator *it);
 
 typedef struct MalValue MalValue;
 typedef struct MalCell MalCell;
@@ -83,6 +122,7 @@ MalValue *make_fixnum(int64_t value);
 MalValue *make_list(MalCell *values);
 
 void push(MalValue *list, MalValue *value);
-const char *put(MalValue *map, const char *key, MalValue *value);
+void push_all(MalValue *list, MalCell *values);
+const char *put(MalValue *map, MalValue *key, MalValue *value);
 void setMetadata(MalValue *value, HashMap *metadata);
 #endif

@@ -9,17 +9,14 @@ SRC = reader.c types.c printer.c token.c env.c core.c gc.c
 HEADERS = reader.h types.h printer.h token.h env.h core.h gc.h
 
 LIB_DIR = ./libs
-LIB_LIST_H = $(LIB_DIR)/linked_list/linked_list.h
-LIB_LIST_SRC = $(LIB_DIR)/linked_list/linked_list.c
 
 LIB_READLINE_H = $(LIB_DIR)/readline/readline.h
 LIB_READLINE_SRC = $(LIB_DIR)/readline/readline.c
 
-LIB_MAP_H = $(LIB_DIR)/hashmap/hashmap.h
-LIB_MAP_SRC = $(LIB_DIR)/hashmap/hashmap.c
+LIB_MAP_SRC = hashmap.c
 
-LIBS_H = $(LIB_LIST_H) $(LIB_MAP_H) $(LIB_READLINE_H)
-LIBS_SRC = $(LIB_LIST_SRC) $(LIB_MAP_SRC) $(LIB_READLINE_SRC)
+LIBS_H = $(LIB_READLINE_H)
+LIBS_SRC = $(LIB_MAP_SRC) $(LIB_READLINE_SRC)
 
 S0_SRC = step0_repl.c readline.c
 S1_SRC = step1_read_print.c reader.c types.c printer.c token.c gc.c $(LIBS_SRC)

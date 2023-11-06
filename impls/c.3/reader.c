@@ -8,7 +8,6 @@
 #include "reader.h"
 #include "token.h"
 #include "types.h"
-#include "libs/hashmap/hashmap.h"
 #include "gc.h"
 
 MalValue *read_form(Reader *reader, bool readNextToken);
@@ -252,6 +251,11 @@ MalValue *read_list_like(Reader *reader, MalValue *list_like, enum TokenType end
 
     while ((tokenType = next_token(reader)) != endToken)
     {
+        if (tokenType == TOKEN_COMMENT)
+        {
+            continue;
+        }
+
         if (tokenType == TOKEN_EOF)
         {
             switch (endToken)
@@ -302,7 +306,7 @@ MalValue *read_atom(Token *token)
     case TOKEN_STRING:
         value = make_string(token->value, true);
         break;
-    case TOKEN_SEMI_COLON:
+    case TOKEN_COMMENT:
         value = make_value(MAL_COMMENT, token->value);
         break;
     case TOKEN_NUMBER:
@@ -350,6 +354,11 @@ MalValue *read_hash_map(Reader *reader)
 
     while ((tokenType = next_token(reader)) != TOKEN_RIGHT_BRACE)
     {
+        if (tokenType == TOKEN_COMMENT)
+        {
+            continue;
+        }
+
         if (tokenType == TOKEN_EOF)
         {
             free_hashmap(map->hashMap);
@@ -365,7 +374,7 @@ MalValue *read_hash_map(Reader *reader)
 
         value = read_form(reader, true);
 
-        put(map, key->value, value);
+        put(map, key, value);
     }
 
     return map;
@@ -423,7 +432,7 @@ MalValue *read_form(Reader *reader, bool readNextToken)
     case TOKEN_RIGHT_BRACKET:
     case TOKEN_RIGHT_BRACE:
     case TOKEN_KOMMA:
-    case TOKEN_SEMI_COLON:
+    case TOKEN_COMMENT:
         break;
     case TOKEN_CARET:
         value = read_with_metadata(reader);

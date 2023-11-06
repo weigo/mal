@@ -137,6 +137,11 @@ int64_t _count(MalCell *value)
     int64_t count = 0;
     MalCell *current = value;
 
+    if (!current)
+    {
+        return count;
+    }
+
     if (value->value->valueType == MAL_LIST || value->value->valueType == MAL_VECTOR)
     {
         current = value->value->list;
@@ -338,7 +343,6 @@ MalValue *equals(MalCell *values)
 
 MalValue *read_string(MalCell *values)
 {
-
     if (!values || values->value->valueType != MAL_STRING)
     {
         return make_error("Invalid argument!");
@@ -364,7 +368,7 @@ char *read_file(const char *file_name)
         len = ftell(stream);
         fseek(stream, 0, SEEK_SET);
 
-        buffer = mal_malloc(len + 1);
+        buffer = mal_malloc(len);
         bytes_read = fread(buffer, 1, len, stream);
         fclose(stream);
 
@@ -375,7 +379,7 @@ char *read_file(const char *file_name)
         }
         else
         {
-            buffer[len + 1] = '\0';
+            buffer[len] = '\0';
         }
     }
 
@@ -396,7 +400,7 @@ MalValue *slurp(MalCell *values)
         return make_error("Could not read '%s'", values->value->value);
     }
 
-    return make_string(contents, false);
+    return make_string(contents, true);
 }
 
 extern MalValue *EVAL(MalValue *value, MalEnvironment *environment);
@@ -406,31 +410,118 @@ MalValue *eval(MalCell *values)
     return EVAL(values->value, global_environment);
 }
 
+MalValue *atom(MalCell *values)
+{
+    if (!values || !values->value)
+    {
+        return make_error("Illegal number of arguments!");
+    }
+
+    MalValue *atom = new_value(MAL_ATOM);
+    atom->malValue = values->value;
+
+    return atom;
+}
+
+MalValue *atom_p(MalCell *values)
+{
+    if (!values || !values->value)
+    {
+        return make_error("Illegal number of arguments!");
+    }
+
+    return values->value->valueType == MAL_ATOM ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *deref(MalCell *values)
+{
+    MalValue *result = atom_p(values);
+
+    if (result->valueType == MAL_ERROR)
+    {
+        return result;
+    }
+
+    return values->value->malValue;
+}
+
+MalValue *reset_exclamation_mark(MalCell *values)
+{
+    MalValue *result = atom_p(values);
+
+    if (result->valueType == MAL_ERROR)
+    {
+        return result;
+    }
+
+    if (result != &MAL_TRUE)
+    {
+        return make_error("Not an atom!");
+    }
+
+    values->value->malValue = values->cdr->value;
+
+    return values->value->malValue;
+}
+
+MalValue *swap_exclamation_mark(MalCell *values)
+{
+    MalValue *result = atom_p(values);
+
+    if (result->valueType == MAL_ERROR)
+    {
+        return result;
+    }
+
+    if (result != &MAL_TRUE)
+    {
+        return make_error("Not an atom!");
+    }
+
+    MalValue *atom = values->value;
+    MalCell *first = values->cdr;
+    MalCell *rest = first->cdr;
+    first->cdr = NULL;
+
+    MalValue *list = make_list(first);
+    push(list, atom->malValue);
+    push_all(list, rest);
+
+    atom->malValue = EVAL(list, global_environment);
+
+    return atom->malValue;
+}
+
 HashMap *core_namespace()
 {
-
     HashMap *ns = make_hashmap();
 
-    hashmap_put(ns, "+", new_function(add));
-    hashmap_put(ns, "-", new_function(subtract));
-    hashmap_put(ns, "*", new_function(multiply));
-    hashmap_put(ns, "/", new_function(divide));
-    hashmap_put(ns, "prn", new_function(prn));
-    hashmap_put(ns, "println", new_function(println));
-    hashmap_put(ns, "pr-str", new_function(print_values_readably));
-    hashmap_put(ns, "str", new_function(print_values));
-    hashmap_put(ns, "list", new_function(list));
-    hashmap_put(ns, "list?", new_function(list_p));
-    hashmap_put(ns, "empty?", new_function(empty_p));
-    hashmap_put(ns, "count", new_function(count));
-    hashmap_put(ns, ">", new_function(greater_than));
-    hashmap_put(ns, ">=", new_function(greater_than_or_equal_to));
-    hashmap_put(ns, "<", new_function(less_than));
-    hashmap_put(ns, "<=", new_function(less_than_or_equal_to));
-    hashmap_put(ns, "=", new_function(equals));
-    hashmap_put(ns, "read-string", new_function(read_string));
-    hashmap_put(ns, "slurp", new_function(slurp));
-    hashmap_put(ns, "eval", new_function(eval));
+    hashmap_put(ns, MAL_SYMBOL, "+", new_function(add));
+    hashmap_put(ns, MAL_SYMBOL, "-", new_function(subtract));
+    hashmap_put(ns, MAL_SYMBOL, "*", new_function(multiply));
+    hashmap_put(ns, MAL_SYMBOL, "/", new_function(divide));
+    hashmap_put(ns, MAL_SYMBOL, "prn", new_function(prn));
+    hashmap_put(ns, MAL_SYMBOL, "println", new_function(println));
+    hashmap_put(ns, MAL_SYMBOL, "pr-str", new_function(print_values_readably));
+    hashmap_put(ns, MAL_SYMBOL, "str", new_function(print_values));
+    hashmap_put(ns, MAL_SYMBOL, "list", new_function(list));
+    hashmap_put(ns, MAL_SYMBOL, "list?", new_function(list_p));
+    hashmap_put(ns, MAL_SYMBOL, "empty?", new_function(empty_p));
+    hashmap_put(ns, MAL_SYMBOL, "count", new_function(count));
+    hashmap_put(ns, MAL_SYMBOL, ">", new_function(greater_than));
+    hashmap_put(ns, MAL_SYMBOL, ">=", new_function(greater_than_or_equal_to));
+    hashmap_put(ns, MAL_SYMBOL, "<", new_function(less_than));
+    hashmap_put(ns, MAL_SYMBOL, "<=", new_function(less_than_or_equal_to));
+    hashmap_put(ns, MAL_SYMBOL, "=", new_function(equals));
+    hashmap_put(ns, MAL_SYMBOL, "read-string", new_function(read_string));
+    hashmap_put(ns, MAL_SYMBOL, "slurp", new_function(slurp));
+    hashmap_put(ns, MAL_SYMBOL, "eval", new_function(eval));
+
+    hashmap_put(ns, MAL_SYMBOL, "atom", new_function(atom));
+    hashmap_put(ns, MAL_SYMBOL, "atom?", new_function(atom_p));
+    hashmap_put(ns, MAL_SYMBOL, "deref", new_function(deref));
+    hashmap_put(ns, MAL_SYMBOL, "reset!", new_function(reset_exclamation_mark));
+    hashmap_put(ns, MAL_SYMBOL, "swap!", new_function(swap_exclamation_mark));
 
     return ns;
 }

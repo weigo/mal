@@ -229,11 +229,25 @@ void push(MalValue *list, MalValue *value)
     cell->cdr->value = value;
 }
 
-const char *put(MalValue *map, const char *key, MalValue *value)
+void push_all(MalValue *list, MalCell *values)
+{
+    assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR);
+
+    MalCell *cell = list->list;
+
+    while (cell->cdr != NULL)
+    {
+        cell = cell->cdr;
+    }
+
+    cell->cdr = values;
+}
+
+const char *put(MalValue *map, MalValue *key, MalValue *value)
 {
     assert(map->valueType == MAL_HASHMAP);
 
-    return hashmap_put(map->hashMap, key, value);
+    return hashmap_put(map->hashMap, key->valueType, key->value, value);
 }
 
 void setMetadata(MalValue *value, HashMap *metadata)

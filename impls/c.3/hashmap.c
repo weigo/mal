@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "hashmap.h"
-#include "../../gc.h"
+#include "types.h"
+#include "gc.h"
 
 /**
  * Base on https://benhoyt.com/writings/hash-table-in-c/
@@ -59,7 +59,7 @@ static uint64_t hash_key(const char *key)
 }
 
 // Internal function to set an entry (without expanding table).
-static const char *hashmap_set_entry(MapEntry *entries, size_t capacity,
+static const char *hashmap_set_entry(MapEntry *entries, size_t capacity, enum MalValueType keyType,
                                      const char *key, void *value, size_t *plength)
 {
     // AND hash with capacity-1 to ensure it's within entries array.
@@ -73,6 +73,7 @@ static const char *hashmap_set_entry(MapEntry *entries, size_t capacity,
         {
             // Found key (it already exists), update value.
             entries[index].value = value;
+            entries[index].keyType = keyType;
             return entries[index].key;
         }
         // Key wasn't in this slot, move to next (linear probing).
@@ -91,6 +92,7 @@ static const char *hashmap_set_entry(MapEntry *entries, size_t capacity,
     }
 
     entries[index].key = (char *)key;
+    entries[index].keyType = keyType;
     entries[index].value = value;
 
     return key;
@@ -122,7 +124,7 @@ static bool expand_hashmap(HashMap *map)
 
         if (entry.key != NULL)
         {
-            hashmap_set_entry(new_entries, new_capacity, entry.key,
+            hashmap_set_entry(new_entries, new_capacity, entry.keyType, entry.key,
                               entry.value, NULL);
         }
     }
@@ -135,9 +137,10 @@ static bool expand_hashmap(HashMap *map)
     return true;
 }
 
-const char *hashmap_put(HashMap *map, const char *key, void *value)
+const char *hashmap_put(HashMap *map, enum MalValueType keyType, const char *key, void *value)
 {
     assert(value != NULL);
+    assert(keyType == MAL_STRING || keyType == MAL_KEYWORD || keyType == MAL_SYMBOL || keyType == MAL_ATOM);
 
     if (value == NULL)
     {
@@ -154,7 +157,7 @@ const char *hashmap_put(HashMap *map, const char *key, void *value)
     }
 
     // Set entry and update length.
-    return hashmap_set_entry(map->entries, map->capacity, key, value,
+    return hashmap_set_entry(map->entries, map->capacity, keyType, key, value,
                              &map->length);
 }
 
@@ -210,6 +213,7 @@ bool hashmap_next(HashMapIterator *it)
             // Found next non-empty item, update iterator key and value.
             MapEntry entry = map->entries[i];
             it->key = entry.key;
+            it->keyType = entry.keyType;
             it->value = entry.value;
             return true;
         }

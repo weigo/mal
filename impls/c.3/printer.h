@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "types.h"
-#include "libs/hashmap/hashmap.h"
 
 void print(FILE *stream, MalValue *value, bool readably);
 char *pr_str(MalValue *value, bool readably);
