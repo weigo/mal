@@ -5,7 +5,7 @@ CFLAGS = -std=c99 -g -Wall
 LIBS = -lreadline
 FFI_LIBS = -ldl -lffi
 
-SRC = reader.c types.c printer.c token.c env.c core.c gc.c
+SRC = reader.c types.c printer.c env.c core.c gc.c
 HEADERS = reader.h types.h printer.h token.h env.h core.h gc.h
 
 LIB_DIR = ./libs

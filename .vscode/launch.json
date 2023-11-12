@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         {
             "name": "(gdb) Launch: step1_read_print",
             "type": "cppdbg",
@@ -131,6 +132,30 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/impls/c.3/step6_file",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Launch: step7_quote",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/impls/c.3/step7_quote",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -105,6 +105,15 @@ extern MalValue MAL_FALSE;
 extern MalValue MAL_TRUE;
 extern MalValue MAL_EOF;
 
+bool is_list(MalValue *value);
+bool is_vector(MalValue *value);
+bool is_sequence(MalValue *value);
+bool is_symbol(MalValue *value);
+bool is_named_symbol(MalValue *value, const char *symbol_name);
+bool is_error(MalValue *value);
+bool is_function(MalValue *value);
+bool is_closure(MalValue *value);
+
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));
 MalValue *make_error(char *fmt, ...);
@@ -119,10 +128,56 @@ MalValue *make_closure(MalEnvironment *outer, MalCell *context);
  */
 MalValue *make_string(char *value, bool unescape);
 MalValue *make_fixnum(int64_t value);
+
+// Sequence related functions.
+
+/**
+ * Make a new list using the given values.
+ *
+ * @param values values to append initially maybe NULL
+ * @return the newly created list.
+ */
 MalValue *make_list(MalCell *values);
 
+/**
+ * Make a new vector using the given values.
+ *
+ * @param values values to append initially maybe NULL
+ * @return the newly created vector.
+ */
+MalValue *make_vector(MalCell *values);
+
+/**
+ * Push the given value onto the tail of the given sequence.
+ *
+ * @param value value to append to the list
+ */
 void push(MalValue *list, MalValue *value);
+
+/**
+ * Append all given values to the given sequence.
+ *
+ * @param list sequence to append values to.
+ * @param values values to append to given sequence.
+ */
 void push_all(MalValue *list, MalCell *values);
+
+/**
+ * Insert the given value at the head of the given sequence.
+ *
+ * @param list sequence to prepend value to.
+ * @param value value to prepend.
+ */
+void prepend(MalValue *list, MalValue *value);
+
+/**
+ * Reverse the given sequence and return a newly created sequence of the same type.
+ *
+ * @param list sequence to be reversed.
+ * @return newly created sequence of same type with its values reversed.
+ */
+MalValue *reverse(MalValue *list);
+
 const char *put(MalValue *map, MalValue *key, MalValue *value);
 void setMetadata(MalValue *value, HashMap *metadata);
 #endif

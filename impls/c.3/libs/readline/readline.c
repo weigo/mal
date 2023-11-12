@@ -25,7 +25,6 @@ void _save_history(char *file_name)
     for (int i = 0; i < history_state->length; i++)
     {
         fprintf(stream, "%s\n", history[i]->line);
-        free(history[i]);
     }
 
     fclose(stream);

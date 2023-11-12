@@ -246,7 +246,7 @@ char *pr_str(MalValue *value, bool readably)
     {
     case MAL_LIST:
     case MAL_VECTOR:
-        buf_size = value->value != NULL ? INITIAL_LIST_BUFFER_SIZE : 3;
+        buf_size = value->list != NULL ? INITIAL_LIST_BUFFER_SIZE : 3;
         break;
 
     case MAL_STRING:

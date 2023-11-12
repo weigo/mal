@@ -119,7 +119,7 @@ MalValue *list_p(MalCell *value)
 
 MalValue *empty_p(MalCell *value)
 {
-    if (value->value->valueType == MAL_LIST || value->value->valueType == MAL_VECTOR)
+    if (is_sequence(value->value))
     {
         if (value->value->list && value->value->list->value)
         {
@@ -129,7 +129,22 @@ MalValue *empty_p(MalCell *value)
         return &MAL_TRUE;
     }
 
-    return &MAL_FALSE;
+    return make_error("Illegal argument type!");
+}
+
+int64_t length(MalValue *list)
+{
+    assert(is_sequence(list));
+    int64_t length = 0;
+    MalCell *current = list->list;
+
+    while (current)
+    {
+        length++;
+        current = current->cdr;
+    }
+
+    return length;
 }
 
 int64_t _count(MalCell *value)
@@ -142,7 +157,7 @@ int64_t _count(MalCell *value)
         return count;
     }
 
-    if (value->value->valueType == MAL_LIST || value->value->valueType == MAL_VECTOR)
+    if (is_sequence(value->value))
     {
         current = value->value->list;
     }
@@ -423,6 +438,11 @@ MalValue *atom(MalCell *values)
     return atom;
 }
 
+bool is_atom(MalValue *value)
+{
+    return value->valueType == MAL_ATOM;
+}
+
 MalValue *atom_p(MalCell *values)
 {
     if (!values || !values->value)
@@ -430,7 +450,7 @@ MalValue *atom_p(MalCell *values)
         return make_error("Illegal number of arguments!");
     }
 
-    return values->value->valueType == MAL_ATOM ? &MAL_TRUE : &MAL_FALSE;
+    return is_atom(values->value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *deref(MalCell *values)
@@ -492,6 +512,52 @@ MalValue *swap_exclamation_mark(MalCell *values)
     return atom->malValue;
 }
 
+MalValue *cons(MalCell *values)
+{
+    MalCell *second = values->cdr;
+
+    if (!second || (!is_sequence(second->value)))
+    {
+        return make_error("Expected a list as second argument!");
+    }
+
+    MalValue *result = make_list(NULL);
+    push(result, values->value);
+    push_all(result, values->cdr->value->list);
+
+    return result;
+}
+
+MalValue *concat(MalCell *values)
+{
+    MalValue *result = make_list(NULL);
+    MalCell *current = values;
+
+    while (current)
+    {
+        if (!is_sequence(current->value))
+        {
+            return make_error("Expected a list argument!");
+        }
+
+        MalCell *nested = current->value->list;
+
+        while (nested)
+        {
+            push(result, nested->value);
+            nested = nested->cdr;
+        }
+
+        current = current->cdr;
+    }
+
+    return result;
+}
+
+MalValue *vector(MalCell *values) {
+    return make_vector(values);
+}
+
 HashMap *core_namespace()
 {
     HashMap *ns = make_hashmap();
@@ -522,6 +588,9 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "deref", new_function(deref));
     hashmap_put(ns, MAL_SYMBOL, "reset!", new_function(reset_exclamation_mark));
     hashmap_put(ns, MAL_SYMBOL, "swap!", new_function(swap_exclamation_mark));
+    hashmap_put(ns, MAL_SYMBOL, "cons", new_function(cons));
+    hashmap_put(ns, MAL_SYMBOL, "concat", new_function(concat));
+    hashmap_put(ns, MAL_SYMBOL, "vec", new_function(vector));
 
     return ns;
 }

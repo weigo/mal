@@ -24,6 +24,46 @@ MalValue MAL_EOF = {
     .valueType = MAL_SYMBOL,
     .value = "EOF"};
 
+bool is_list(MalValue *value)
+{
+    return value->valueType == MAL_LIST;
+}
+
+bool is_vector(MalValue *value)
+{
+    return value->valueType == MAL_VECTOR;
+}
+
+bool is_sequence(MalValue *value)
+{
+    return value->valueType == MAL_LIST || value->valueType == MAL_VECTOR;
+}
+
+bool is_symbol(MalValue *value)
+{
+    return value && value->valueType == MAL_SYMBOL;
+}
+
+bool is_named_symbol(MalValue *value, const char *symbol_name)
+{
+    return is_symbol(value) && strcmp(value->value, symbol_name) == 0;
+}
+
+bool is_error(MalValue *value)
+{
+    return value->valueType == MAL_ERROR;
+}
+
+bool is_function(MalValue *value)
+{
+    return value->valueType == MAL_FUNCTION;
+}
+
+bool is_closure(MalValue *value)
+{
+    return value->valueType == MAL_CLOSURE;
+}
+
 MalValue *new_value(enum MalValueType valueType)
 {
     MalValue *value = mal_calloc(1, sizeof(MalValue));
@@ -53,7 +93,7 @@ MalValue *make_error(char *fmt, ...)
 {
     va_list arg_ptr;
     int result = -1;
-    size_t buf_len = 64;
+    size_t buf_len = 2 * strlen(fmt);
     char *message = "";
 
     while (result < 0)
@@ -205,14 +245,25 @@ MalValue *make_list(MalCell *values)
     return result;
 }
 
+MalValue *make_vector(MalCell *values)
+{
+    MalValue *result = new_value(MAL_VECTOR);
+
+    if (values && values->value && is_sequence(values->value))
+    {
+        push_all(result, values->value->list);
+    }
+
+    return result;
+}
+
 void push(MalValue *list, MalValue *value)
 {
     assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR);
 
     if (list->list == NULL)
     {
-        list->list = mal_malloc(sizeof(MalCell));
-        list->list->cdr = NULL;
+        list->list = mal_calloc(1, sizeof(MalCell));
         list->list->value = value;
         return;
     }
@@ -233,6 +284,12 @@ void push_all(MalValue *list, MalCell *values)
 {
     assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR);
 
+    if (list->list == NULL)
+    {
+        list->list = values;
+        return;
+    }
+
     MalCell *cell = list->list;
 
     while (cell->cdr != NULL)
@@ -241,6 +298,31 @@ void push_all(MalValue *list, MalCell *values)
     }
 
     cell->cdr = values;
+}
+
+void prepend(MalValue *list, MalValue *value)
+{
+    MalCell *head = mal_malloc(sizeof(MalCell));
+
+    head->value = value;
+    head->cdr = list->list;
+    list->list = head;
+}
+
+MalValue *reverse(MalValue *list)
+{
+    assert(is_sequence(list));
+
+    MalValue *reversed = make_list(NULL);
+    MalCell *current = list->list;
+
+    while (current)
+    {
+        prepend(reversed, current->value);
+        current = current->cdr;
+    }
+
+    return reversed;
 }
 
 const char *put(MalValue *map, MalValue *key, MalValue *value)
