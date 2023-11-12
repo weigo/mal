@@ -89,6 +89,15 @@ MalValue *make_value(enum MalValueType valueType, const char *value)
     return mal_value;
 }
 
+MalValue *make_symbol(const char *symbol_name)
+{
+    // FIXME: lookup symbol_name in a symbol hash table and return the value already there
+    MalValue *mal_value = new_value(MAL_SYMBOL);
+    mal_value->value = symbol_name;
+
+    return mal_value;
+}
+
 MalValue *make_error(char *fmt, ...)
 {
     va_list arg_ptr;

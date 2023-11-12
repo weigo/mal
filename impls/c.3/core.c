@@ -604,7 +604,7 @@ MalEnvironment *make_initial_environment()
 
     while (hashmap_next(&it))
     {
-        set_in_environment(environment, make_value(MAL_SYMBOL, it.key), it.value);
+        set_in_environment(environment, make_symbol(it.key), it.value);
     }
 
     set_in_environment(environment, &MAL_NIL, &MAL_NIL);

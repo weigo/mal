@@ -6,7 +6,7 @@ LIBS = -lreadline
 FFI_LIBS = -ldl -lffi
 
 SRC = reader.c types.c printer.c env.c core.c gc.c
-HEADERS = reader.h types.h printer.h token.h env.h core.h gc.h
+HEADERS = reader.h types.h printer.h token.h env.h core.h gc.h symbol.h
 
 LIB_DIR = ./libs
 

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "reader.h"
+#include "symbol.h"
 #include "token.h"
 #include "types.h"
 #include "gc.h"
@@ -301,7 +302,7 @@ MalValue *read_atom(Token *token)
     switch (token->tokenType)
     {
     case TOKEN_TILDE:
-        value = make_value(MAL_SYMBOL, token->value);
+        value = make_symbol(token->value);
         break;
     case TOKEN_STRING:
         value = make_string(token->value, true);
@@ -325,7 +326,7 @@ MalValue *read_atom(Token *token)
         }
         else
         {
-            value = make_value(MAL_SYMBOL, token->value);
+            value = make_symbol(token->value);
         }
         break;
     }
@@ -337,7 +338,7 @@ MalValue *read_reader_macro(Reader *reader, char *symbol)
 {
     MalValue *quote = new_value(MAL_LIST);
 
-    push(quote, make_value(MAL_SYMBOL, symbol));
+    push(quote, make_symbol(symbol));
     push(quote, read_form(reader, true));
 
     return quote;
@@ -388,7 +389,7 @@ MalValue *read_with_metadata(Reader *reader)
     setMetadata(value, metadata->hashMap);
     free(metadata);
     MalValue *list = new_value(MAL_LIST);
-    push(list, make_value(MAL_SYMBOL, "with-meta"));
+    push(list, make_symbol(SYMBOL_WITH_META));
 
     return value;
 }
@@ -411,19 +412,19 @@ MalValue *read_form(Reader *reader, bool readNextToken)
         value = read_vector(reader);
         break;
     case TOKEN_BACK_TICK:
-        value = read_reader_macro(reader, "quasiquote");
+        value = read_reader_macro(reader, SYMBOL_QUASI_QUOTE);
         break;
     case TOKEN_SINGLE_QUOTE:
-        value = read_reader_macro(reader, "quote");
+        value = read_reader_macro(reader, SYMBOL_QUOTE);
         break;
     case TOKEN_TILDE:
-        value = read_reader_macro(reader, "unquote");
+        value = read_reader_macro(reader, SYMBOL_UNQUOTE);
         break;
     case TOKEN_TILDE_AT:
-        value = read_reader_macro(reader, "splice-unquote");
+        value = read_reader_macro(reader, SYMBOL_SPLICE_UNQUOTE);
         break;
     case TOKEN_AT:
-        value = read_reader_macro(reader, "deref");
+        value = read_reader_macro(reader, SYMBOL_DEREF);
         break;
     case TOKEN_LEFT_BRACE:
         value = read_hash_map(reader);

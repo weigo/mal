@@ -117,6 +117,7 @@ bool is_closure(MalValue *value);
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));
 MalValue *make_error(char *fmt, ...);
+MalValue *make_symbol(const char *symbol_name);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
 

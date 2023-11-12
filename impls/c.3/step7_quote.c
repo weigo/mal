@@ -268,14 +268,14 @@ MalValue *quasiquote_vector(MalValue *value)
 
         if (is_named_symbol(first, SYMBOL_UNQUOTE))
         {
-            push(result, make_value(MAL_SYMBOL, SYMBOL_QUOTE));
+            push(result, make_symbol(SYMBOL_QUOTE));
             push(result, value);
 
             return result;
         }
     }
 
-    push(result, make_value(MAL_SYMBOL, SYMBOL_VEC));
+    push(result, make_symbol(SYMBOL_VEC));
     MalValue *quasiquoted_list = quasiquote_list(value);
 
     if (is_error(quasiquoted_list))
@@ -317,7 +317,7 @@ MalValue *quasiquote_list(MalValue *value)
         }
 
         MalValue *spliced = make_list(NULL);
-        push(spliced, make_value(MAL_SYMBOL, SYMBOL_CONCAT));
+        push(spliced, make_symbol(SYMBOL_CONCAT));
         push(spliced, first->list->cdr->value);
         MalValue *rest = quasiquote(make_list(list->cdr));
 
@@ -347,7 +347,7 @@ MalValue *quasiquote_list(MalValue *value)
 
     MalValue *cons = make_list(NULL);
 
-    push(cons, make_value(MAL_SYMBOL, SYMBOL_CONS));
+    push(cons, make_symbol(SYMBOL_CONS));
     push(cons, first);
     push(cons, rest);
 
@@ -399,7 +399,7 @@ MalValue *quasiquote(MalValue *value)
         }
 
         result = make_list(NULL);
-        push(result, make_value(MAL_SYMBOL, SYMBOL_QUOTE));
+        push(result, make_symbol(SYMBOL_QUOTE));
         push(result, value);
         break;
     }
@@ -580,7 +580,7 @@ int main(int argc, char **argv)
     rep(LISP_LIBRARY, global_environment, false);
 
     MalValue *args = make_list(NULL);
-    set_in_environment(global_environment, make_value(MAL_SYMBOL, "*ARGV*"), args);
+    set_in_environment(global_environment, make_symbol("*ARGV*"), args);
 
     if (argc > 1)
     {

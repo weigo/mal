@@ -4,6 +4,7 @@
 #define SYMBOL_CONCAT "concat"
 #define SYMBOL_CONS "cons"
 #define SYMBOL_DEF_BANG "def!"
+#define SYMBOL_DEREF "deref"
 #define SYMBOL_DO "do"
 #define SYMBOL_IF "if"
 #define SYMBOL_LET_STAR "let*"
@@ -18,4 +19,5 @@
 #define SYMBOL_UNQUOTE "unquote"
 #define SYMBOL_VEC "vec"
 #define SYMBOL_SPLICE_UNQUOTE "splice-unquote"
+#define SYMBOL_WITH_META "with-meta"
 #endif
