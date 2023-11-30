@@ -4,6 +4,7 @@
 #include "env.h"
 #include "printer.h"
 #include "reader.h"
+#include "symbol.h"
 #include "types.h"
 #include "gc.h"
 
@@ -100,6 +101,13 @@ MalValue *prn(MalCell *values)
     return &MAL_NIL;
 }
 
+// list functions
+/**
+ * Create a list from the given values.
+ *
+ * @param values {code}NULL{code} or list of {code}MalCell{code}s to assign to the new list.
+ * @return a new {code}MalValue*{code} of type {code}MAL_LIST{code}
+ */
 MalValue *list(MalCell *values)
 {
     MalValue *result = new_value(MAL_LIST);
@@ -181,6 +189,78 @@ int64_t _count(MalCell *value)
 MalValue *count(MalCell *value)
 {
     return make_fixnum(_count(value));
+}
+
+MalValue *nth(MalCell *values)
+{
+    MalValue *list = values->value;
+
+    if (!is_sequence(list))
+    {
+        return make_error("'nth': first argument is not a list!");
+    }
+
+    if (!values->cdr)
+    {
+        return make_error("'nth': expected second argument as index into the list!");
+    }
+
+    MalValue *index = values->cdr->value;
+
+    if (!is_fixnum(index) || index->fixnum < 0)
+    {
+        return make_error("'nth': list index must be a fixnum > 0!");
+    }
+
+    int64_t idx = 0;
+    MalCell *current = list->list;
+
+    while (idx < index->fixnum && current)
+    {
+        current = current->cdr;
+        idx++;
+    }
+
+    if (idx <= index->fixnum && !current)
+    {
+        return make_error("nth: index '%d' out of bounds for '%s'.", index->fixnum, pr_str(list, true));
+    }
+
+    return current->value;
+}
+
+MalValue *first(MalCell *values)
+{
+    MalValue *list = values->value;
+
+    if (!list || is_named_symbol(list, SYMBOL_NIL))
+    {
+        return &MAL_NIL;
+    }
+
+    if (empty_p(values) == &MAL_TRUE)
+    {
+        return &MAL_NIL;
+    }
+
+    return list->list->value;
+}
+
+MalValue *rest(MalCell *values)
+{
+    MalValue *list = values->value;
+
+    if (!list || is_named_symbol(list, SYMBOL_NIL))
+    {
+        return make_list(NULL);
+    }
+
+    if (empty_p(values) == &MAL_TRUE)
+    {
+        return make_list(NULL);
+    }
+
+    return make_list(list->list->cdr);
 }
 
 MalValue *greater_than(MalCell *values)
@@ -420,6 +500,16 @@ MalValue *slurp(MalCell *values)
 
 extern MalValue *EVAL(MalValue *value, MalEnvironment *environment);
 
+MalValue *macro_p(MalCell *values)
+{
+    if (!values || !values->value)
+    {
+        return make_error("Illegal number of arguments!");
+    }
+
+    return is_macro(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
 MalValue *eval(MalCell *values)
 {
     return EVAL(values->value, global_environment);
@@ -554,7 +644,8 @@ MalValue *concat(MalCell *values)
     return result;
 }
 
-MalValue *vector(MalCell *values) {
+MalValue *vector(MalCell *values)
+{
     return make_vector(values);
 }
 
@@ -591,6 +682,12 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "cons", new_function(cons));
     hashmap_put(ns, MAL_SYMBOL, "concat", new_function(concat));
     hashmap_put(ns, MAL_SYMBOL, "vec", new_function(vector));
+
+    hashmap_put(ns, MAL_SYMBOL, "macro?", new_function(macro_p));
+
+    hashmap_put(ns, MAL_SYMBOL, "nth", new_function(nth));
+    hashmap_put(ns, MAL_SYMBOL, "first", new_function(first));
+    hashmap_put(ns, MAL_SYMBOL, "rest", new_function(rest));
 
     return ns;
 }

@@ -88,7 +88,15 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
     case MAL_CLOSURE:
     {
         MalClosure *closure = value->closure;
-        mal_strcat(buffer, "#<function>:closure (fn* ");
+
+        if (closure->is_macro)
+        {
+            mal_strcat(buffer, "#<function>:macro (fn* ");
+        }
+        else
+        {
+            mal_strcat(buffer, "#<function>:closure (fn* ");
+        }
 
         if (closure->rest_symbol)
         {

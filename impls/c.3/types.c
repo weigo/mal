@@ -64,6 +64,16 @@ bool is_closure(MalValue *value)
     return value->valueType == MAL_CLOSURE;
 }
 
+bool is_macro(MalValue *value)
+{
+    return is_closure(value) && value->closure->is_macro;
+}
+
+bool is_fixnum(MalValue *value)
+{
+    return value->valueType == MAL_FIXNUM;
+}
+
 MalValue *new_value(enum MalValueType valueType)
 {
     MalValue *value = mal_calloc(1, sizeof(MalValue));
@@ -148,6 +158,7 @@ MalValue *make_closure(MalEnvironment *outer, MalCell *context)
 
     closure->ast = context->cdr->value;
     closure->bindings = context->value;
+    closure->is_macro = false;
 
     MalCell *args = context->value->list;
     MalCell *marker = NULL;

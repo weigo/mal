@@ -276,10 +276,14 @@ MalValue *read_list_like(Reader *reader, MalValue *list_like, enum TokenType end
 
         value = read_form(reader, false);
 
-        if (value != NULL)
+        assert(value);
+
+        if (is_error(value))
         {
-            push(list_like, value);
+            return value;
         }
+
+        push(list_like, value);
     }
 
     return list_like;

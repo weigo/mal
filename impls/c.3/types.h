@@ -82,6 +82,7 @@ typedef struct MalClosure
     MalValue *bindings;
     MalValue *ast;
     MalValue *rest_symbol;
+    bool is_macro;
 } MalClosure;
 
 typedef struct MalValue
@@ -113,6 +114,8 @@ bool is_named_symbol(MalValue *value, const char *symbol_name);
 bool is_error(MalValue *value);
 bool is_function(MalValue *value);
 bool is_closure(MalValue *value);
+bool is_macro(MalValue *value);
+bool is_fixnum(MalValue *value);
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));

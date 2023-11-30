@@ -6,6 +6,7 @@
 enum TokenType
 {
     TOKEN_AT,
+    TOKEN_BACK_SLASH,
     TOKEN_BACK_TICK,
     TOKEN_CARET,
     TOKEN_COMMENT,
