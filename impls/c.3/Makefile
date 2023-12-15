@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -std=c99 -g -Wall
+CFLAGS = -std=c99 -g3 -fsanitize=address -Wall
 
 LIBS = -lreadline
 FFI_LIBS = -ldl -lffi

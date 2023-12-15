@@ -350,8 +350,7 @@ MalValue *read_reader_macro(Reader *reader, char *symbol)
 
 MalValue *read_hash_map(Reader *reader)
 {
-    MalValue *map = new_value(MAL_HASHMAP);
-    map->hashMap = make_hashmap();
+    MalValue *map = make_hashmap();
     MalValue *key = NULL;
     MalValue *value = NULL;
     enum TokenType tokenType;

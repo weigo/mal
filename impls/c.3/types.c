@@ -44,6 +44,11 @@ bool is_symbol(MalValue *value)
     return value && value->valueType == MAL_SYMBOL;
 }
 
+bool is_keyword(MalValue *value)
+{
+    return value && value->valueType == MAL_KEYWORD;
+}
+
 bool is_named_symbol(MalValue *value, const char *symbol_name)
 {
     return is_symbol(value) && strcmp(value->value, symbol_name) == 0;
@@ -69,9 +74,24 @@ bool is_macro(MalValue *value)
     return is_closure(value) && value->closure->is_macro;
 }
 
+bool is_executable(MalValue *value)
+{
+    return is_function(value) || is_closure(value) || is_macro(value);
+}
+
 bool is_fixnum(MalValue *value)
 {
     return value->valueType == MAL_FIXNUM;
+}
+
+bool is_string(MalValue *value)
+{
+    return value->valueType == MAL_STRING;
+}
+
+bool is_hashmap(MalValue *value)
+{
+    return value->valueType == MAL_HASHMAP;
 }
 
 MalValue *new_value(enum MalValueType valueType)
@@ -134,7 +154,18 @@ MalValue *make_error(char *fmt, ...)
         va_end(arg_ptr);
     }
 
-    return make_value(MAL_ERROR, message);
+    MalValue *error = new_value(MAL_ERROR);
+    error->malValue = make_string(message, false);
+
+    return error;
+}
+
+MalValue *wrap_error(MalValue *value)
+{
+    MalValue *error = new_value(MAL_ERROR);
+    error->malValue = value;
+
+    return error;
 }
 
 MalValue *make_fixnum(int64_t number)
@@ -215,39 +246,43 @@ MalValue *make_string(char *value, bool unescape)
     }
 
     size_t len = strlen(value);
-    char *result = mal_calloc(len, sizeof(char));
+    char tmp[len * 2];
+    int j = 0;
 
-    for (int i = 0, j = 0; i < len; i++, j++)
+    for (int i = 0; i < len; i++, j++)
     {
         if (value[i] == '\\')
         {
             switch (value[i + 1])
             {
             case '\\':
-                result[j] = '\\';
+                tmp[j] = '\\';
                 i++;
                 break;
 
             case 'n':
-                result[j] = '\n';
+                tmp[j] = '\n';
                 i++;
                 break;
 
             case '"':
-                result[j] = '"';
+                tmp[j] = '"';
                 i++;
                 break;
 
             default:
-                result[j] = value[i + 1];
+                tmp[j] = value[i + 1];
                 break;
             }
         }
         else
         {
-            result[j] = value[i];
+            tmp[j] = value[i];
         }
     }
+
+    char *result = mal_calloc(j + 1, sizeof(char));
+    strncpy(result, tmp, j);
 
     _value->value = result;
     return _value;
@@ -268,11 +303,7 @@ MalValue *make_list(MalCell *values)
 MalValue *make_vector(MalCell *values)
 {
     MalValue *result = new_value(MAL_VECTOR);
-
-    if (values && values->value && is_sequence(values->value))
-    {
-        push_all(result, values->value->list);
-    }
+    push_all(result, values);
 
     return result;
 }
@@ -343,6 +374,14 @@ MalValue *reverse(MalValue *list)
     }
 
     return reversed;
+}
+
+MalValue *make_hashmap()
+{
+    MalValue *map = new_value(MAL_HASHMAP);
+    map->hashMap = new_hashmap();
+
+    return map;
 }
 
 const char *put(MalValue *map, MalValue *key, MalValue *value)

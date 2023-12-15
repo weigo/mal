@@ -96,8 +96,10 @@ MalValue *divide(MalCell *values)
 
 MalValue *prn(MalCell *values)
 {
+
     print(output_stream, print_values_readably(values), false);
     fprintf(output_stream, "\n");
+
     return &MAL_NIL;
 }
 
@@ -335,6 +337,29 @@ MalValue *greater_than_or_equal_to(MalCell *values)
     return first->fixnum >= second->fixnum ? &MAL_TRUE : &MAL_FALSE;
 }
 
+bool are_maps_equal(HashMap *left, HashMap *right)
+{
+    if (left->entries == right->entries)
+    {
+        return true;
+    }
+
+    HashMapIterator it = hashmap_iterator(left);
+    MalValue *entry;
+
+    while (hashmap_next(&it))
+    {
+        entry = hashmap_get(right, it.key);
+
+        if (!entry || !is_equal(it.value, entry))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool is_equal_by_type(MalValue *left, MalValue *right)
 {
     assert(left->valueType == right->valueType);
@@ -355,6 +380,10 @@ bool is_equal_by_type(MalValue *left, MalValue *right)
     case MAL_LIST:
     case MAL_VECTOR:
         result = are_lists_equal(left->list, right->list);
+        break;
+
+    case MAL_HASHMAP:
+        result = are_maps_equal(left->hashMap, right->hashMap);
         break;
 
     default:
@@ -644,14 +673,491 @@ MalValue *concat(MalCell *values)
     return result;
 }
 
+MalValue *vec(MalCell *values)
+{
+    if (!values || values->cdr || !is_sequence(values->value))
+    {
+        return make_error("'vec': expected a list/vector argument");
+    }
+
+    return make_vector(values->value->list);
+}
+
 MalValue *vector(MalCell *values)
 {
     return make_vector(values);
 }
 
+MalValue *vector_p(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'vector?': expects axactly one argument");
+    }
+
+    return is_vector(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *throw(MalCell * values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'throw': expects axactly one argument");
+    }
+
+    if (is_error(values->value))
+    {
+        return values->value;
+    }
+
+    return wrap_error(values->value);
+}
+
+MalValue *hashmap(MalCell *values)
+{
+    int64_t args = _count(values);
+
+    if (args % 2 == 1)
+    {
+        return make_error("'hash-map': even count of arguments expected, got '%d'", args);
+    }
+
+    MalValue *map = make_hashmap();
+    MalCell *current = values;
+
+    while (current)
+    {
+        hashmap_put(map->hashMap, current->value->valueType, current->value->value, current->cdr->value);
+        current = current->cdr->cdr;
+    }
+
+    return map;
+}
+
+MalValue *assoc(MalCell *values)
+{
+    MalValue *orig = values->value;
+
+    if (!is_hashmap(orig))
+    {
+        return make_error("'assoc': expected a hasmap as first argument");
+    }
+
+    if (_count(values->cdr) % 2 != 0)
+    {
+        return make_error("'assoc': expected even number of arguments to merge as key/value pairs");
+    }
+
+    // FIXME: use # of key/value pairs to merge + capacity of original map as new capacity
+    MalValue *map = make_hashmap();
+    HashMapIterator it = hashmap_iterator(orig->hashMap);
+
+    while (hashmap_next(&it))
+    {
+        hashmap_put(map->hashMap, it.keyType, it.key, it.value);
+    }
+
+    MalCell *current = values->cdr;
+
+    while (current)
+    {
+        hashmap_put(map->hashMap, current->value->valueType, current->value->value, current->cdr->value);
+        current = current->cdr->cdr;
+    }
+
+    return map;
+}
+
+MalValue *dissoc(MalCell *values)
+{
+    MalValue *orig = values->value;
+
+    if (!is_hashmap(orig))
+    {
+        return make_error("'assoc': expected a hasmap as first argument");
+    }
+
+    // FIXME: use # of key/value pairs to merge + capacity of original map as new capacity
+    MalValue *map = make_hashmap();
+    HashMapIterator it = hashmap_iterator(orig->hashMap);
+
+    while (hashmap_next(&it))
+    {
+        hashmap_put(map->hashMap, it.keyType, it.key, it.value);
+    }
+
+    MalCell *current = values->cdr;
+
+    while (current)
+    {
+        hashmap_delete(map->hashMap, current->value->value);
+        current = current->cdr;
+    }
+
+    return map;
+}
+
+MalValue *get_from_hashmap(MalCell *values)
+{
+    if (!values || values->cdr->cdr)
+    {
+        return make_error("'get': expected exactly two arguments");
+    }
+
+    MalValue *map = values->value;
+
+    if (map == &MAL_NIL)
+    {
+        return &MAL_NIL;
+    }
+
+    if (!is_hashmap(map))
+    {
+        return make_error("'get': expected a hasmap as first argument");
+    }
+
+    MalValue *key = values->cdr->value;
+
+    if (!is_string(key) && !is_symbol(key) && !is_keyword(key))
+    {
+        return make_error("'get?': illegal key type");
+    }
+
+    MalValue *result = hashmap_get(map->hashMap, values->cdr->value->value);
+
+    return result == NULL ? &MAL_NIL : result;
+}
+
+MalValue *contains_p(MalCell *values)
+{
+    MalValue *map = values->value;
+
+    if (!is_hashmap(map))
+    {
+        return make_error("'contains?': expected a hasmap as first argument");
+    }
+
+    if (_count(values->cdr) != 1)
+    {
+        return make_error("'contains?': expected exactly one argument");
+    }
+
+    MalValue *key = values->cdr->value;
+
+    if (!is_string(key) && !is_symbol(key) && !is_keyword(key))
+    {
+        return make_error("'contains?': illegal key type");
+    }
+
+    MalValue *result = hashmap_get(map->hashMap, values->cdr->value->value);
+
+    return result == NULL ? &MAL_FALSE : &MAL_TRUE;
+}
+
+MalValue *map_p(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'map?': expected exactly one argument");
+    }
+
+    return is_hashmap(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *symbol_p(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'symbol?': exactly one argument expected");
+    }
+
+    return is_symbol(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *keyword_p(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'keyword?': exactly one argument expected");
+    }
+
+    return is_keyword(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *keyword(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'keyword': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    if (is_string(value))
+    {
+        char *keyword = mal_calloc(strlen(value->value) + 2, sizeof(char));
+        sprintf(keyword, ":%s", value->value);
+
+        return make_value(MAL_KEYWORD, keyword);
+    }
+    else if (is_keyword(value))
+    {
+        return value;
+    }
+
+    return make_error("'keyword': expected a string or keyword argument");
+}
+
+MalValue *keys(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'keys': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    if (!is_hashmap(value))
+    {
+        return make_error("'keys': illegal argument, expected a hashmap");
+    }
+
+    MalValue *keys = make_list(NULL);
+    HashMapIterator it = hashmap_iterator(value->hashMap);
+
+    while (hashmap_next(&it))
+    {
+        switch (it.keyType)
+        {
+        case MAL_STRING:
+            push(keys, make_string(it.key, false));
+            break;
+
+        case MAL_SYMBOL:
+            push(keys, make_symbol(it.key));
+            break;
+
+        case MAL_KEYWORD:
+        {
+            MalValue *key = new_value(MAL_KEYWORD);
+            key->value = it.key;
+            push(keys, key);
+        }
+        break;
+
+        default:
+            return make_error("'keys': illegal hash map key: '%s'", it.key);
+        }
+    }
+
+    return keys;
+}
+
+MalValue *vals(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'vals': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    if (!is_hashmap(value))
+    {
+        return make_error("'vals': illegal argument, expected a hashmap");
+    }
+
+    MalValue *vals = make_list(NULL);
+    HashMapIterator it = hashmap_iterator(value->hashMap);
+
+    while (hashmap_next(&it))
+    {
+        push(vals, it.value);
+    }
+
+    return vals;
+}
+
+MalValue *nil_p(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'nil?': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    return is_equal(&MAL_NIL, value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *true_p(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'true?': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    return is_equal(&MAL_TRUE, value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *false_p(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'false?': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    return is_equal(&MAL_FALSE, value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *symbol(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'symbol': exactly one argument expected");
+    }
+
+    MalValue *value = values->value;
+
+    if (!is_string(value))
+    {
+        return make_error("'symbol': can only construct symbols from string");
+    }
+
+    return make_symbol(value->value);
+}
+
+MalValue *_apply(MalValue *executable, MalCell *params)
+{
+    MalValue *args = make_list(NULL);
+    MalCell *current = params;
+
+    while (current && current->cdr)
+    {
+        push(args, current->value);
+        current = current->cdr;
+    }
+
+    if (current)
+    {
+        if (is_sequence(current->value))
+
+        {
+            push_all(args, current->value->list);
+        }
+        else
+        {
+            push(args, current->value);
+        }
+    }
+
+    if (is_function(executable))
+    {
+        return executable->function(args->list);
+    }
+
+    if (is_closure(executable))
+    {
+        MalClosure *closure = executable->closure;
+        int64_t bindings_count = _count(closure->bindings->list);
+        int64_t arg_count = _count(args->list);
+
+        if (bindings_count > arg_count)
+        {
+            return make_error("Expected '%d' arguments, but got '%d'", bindings_count, arg_count);
+        }
+        else if (arg_count > bindings_count && !closure->rest_symbol)
+        {
+            return make_error("Too many arguments! Expected '%d', but got '%d'. Perhaps you didn't supply an argument consuming the rest of the arugment list?", bindings_count, arg_count);
+        }
+
+        MalEnvironment *environment = make_environment(closure->environment, closure->bindings->list, args->list, closure->rest_symbol);
+
+        if (!environment)
+        {
+            return make_error("Could not allocate environment!");
+        }
+
+        return EVAL(closure->ast, environment);
+    }
+
+    return make_error("'apply': first argument is not a function/closure/macro");
+}
+
+MalValue *apply(MalCell *values)
+{
+    if (!values->cdr)
+    {
+        return make_error("'apply': at least two arguments expected");
+    }
+
+    // FIXME: Reintegrate _apply????
+    return _apply(values->value, values->cdr);
+}
+
+MalValue *sequential(MalCell *values)
+{
+    if (values->cdr)
+    {
+        return make_error("'sequential?': exactly one argument expected");
+    }
+
+    return is_sequence(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *map(MalCell *values)
+{
+    if (!values || !values->value || !values->cdr)
+    {
+        return make_error("'map': expected two arguments");
+    }
+
+    MalValue *executable = values->value;
+
+    if (!is_executable(executable))
+    {
+        return make_error("'map': expected function/closure as first argument");
+    }
+
+    if (!values->cdr || !is_sequence(values->cdr->value))
+    {
+        return make_error("'map': illegal argument! expected list/vector");
+    }
+
+    if (empty_p(values->cdr) == &MAL_TRUE)
+    {
+        return values->cdr->value;
+    }
+
+    MalCell *current = values->cdr->value->list;
+    MalValue *result = make_list(NULL);
+    MalCell param = {.value = NULL, .cdr = NULL};
+    MalValue *tmp;
+
+    while (current)
+    {
+        param.value = current->value;
+        tmp = _apply(executable, &param);
+
+        if (is_error(tmp))
+        {
+            return tmp;
+        }
+
+        push(result, tmp);
+        current = current->cdr;
+    }
+
+    return result;
+}
+
 HashMap *core_namespace()
 {
-    HashMap *ns = make_hashmap();
+    HashMap *ns = new_hashmap();
 
     hashmap_put(ns, MAL_SYMBOL, "+", new_function(add));
     hashmap_put(ns, MAL_SYMBOL, "-", new_function(subtract));
@@ -681,13 +1187,39 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "swap!", new_function(swap_exclamation_mark));
     hashmap_put(ns, MAL_SYMBOL, "cons", new_function(cons));
     hashmap_put(ns, MAL_SYMBOL, "concat", new_function(concat));
-    hashmap_put(ns, MAL_SYMBOL, "vec", new_function(vector));
+    hashmap_put(ns, MAL_SYMBOL, "vec", new_function(vec));
+    hashmap_put(ns, MAL_SYMBOL, "vector", new_function(vector));
+    hashmap_put(ns, MAL_SYMBOL, "vector?", new_function(vector_p));
 
     hashmap_put(ns, MAL_SYMBOL, "macro?", new_function(macro_p));
 
     hashmap_put(ns, MAL_SYMBOL, "nth", new_function(nth));
     hashmap_put(ns, MAL_SYMBOL, "first", new_function(first));
     hashmap_put(ns, MAL_SYMBOL, "rest", new_function(rest));
+
+    hashmap_put(ns, MAL_SYMBOL, "throw", new_function(throw));
+
+    hashmap_put(ns, MAL_SYMBOL, "hash-map", new_function(hashmap));
+    hashmap_put(ns, MAL_SYMBOL, "assoc", new_function(assoc));
+    hashmap_put(ns, MAL_SYMBOL, "dissoc", new_function(dissoc));
+    hashmap_put(ns, MAL_SYMBOL, "get", new_function(get_from_hashmap));
+    hashmap_put(ns, MAL_SYMBOL, "contains?", new_function(contains_p));
+    hashmap_put(ns, MAL_SYMBOL, "map?", new_function(map_p));
+    hashmap_put(ns, MAL_SYMBOL, "keys", new_function(keys));
+    hashmap_put(ns, MAL_SYMBOL, "vals", new_function(vals));
+
+    hashmap_put(ns, MAL_SYMBOL, "symbol?", new_function(symbol_p));
+    hashmap_put(ns, MAL_SYMBOL, "symbol", new_function(symbol));
+    hashmap_put(ns, MAL_SYMBOL, "keyword?", new_function(keyword_p));
+    hashmap_put(ns, MAL_SYMBOL, "keyword", new_function(keyword));
+
+    hashmap_put(ns, MAL_SYMBOL, "nil?", new_function(nil_p));
+    hashmap_put(ns, MAL_SYMBOL, "true?", new_function(true_p));
+    hashmap_put(ns, MAL_SYMBOL, "false?", new_function(false_p));
+    hashmap_put(ns, MAL_SYMBOL, "sequential?", new_function(sequential));
+    hashmap_put(ns, MAL_SYMBOL, "apply", new_function(apply));
+
+    hashmap_put(ns, MAL_SYMBOL, "map", new_function(map));
 
     return ns;
 }

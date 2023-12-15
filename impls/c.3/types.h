@@ -47,7 +47,7 @@ typedef struct HashMapIterator
     size_t _index; // current index into ht._entries
 } HashMapIterator;
 
-HashMap *make_hashmap();
+HashMap *new_hashmap();
 void free_hashmap(HashMap *);
 const char *hashmap_put(HashMap *hashMap, enum MalValueType keyType, const char *key, void *value);
 void *hashmap_get(HashMap *hashMap, const char *key);
@@ -110,16 +110,21 @@ bool is_list(MalValue *value);
 bool is_vector(MalValue *value);
 bool is_sequence(MalValue *value);
 bool is_symbol(MalValue *value);
+bool is_keyword(MalValue *value);
 bool is_named_symbol(MalValue *value, const char *symbol_name);
 bool is_error(MalValue *value);
 bool is_function(MalValue *value);
 bool is_closure(MalValue *value);
 bool is_macro(MalValue *value);
 bool is_fixnum(MalValue *value);
+bool is_string(MalValue *value);
+bool is_hashmap(MalValue *value);
+bool is_executable(MalValue *value);
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));
 MalValue *make_error(char *fmt, ...);
+MalValue *wrap_error(MalValue *value);
 MalValue *make_symbol(const char *symbol_name);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
@@ -182,6 +187,8 @@ void prepend(MalValue *list, MalValue *value);
  */
 MalValue *reverse(MalValue *list);
 
+// HashMap related functions
+MalValue *make_hashmap();
 const char *put(MalValue *map, MalValue *key, MalValue *value);
 void setMetadata(MalValue *value, HashMap *metadata);
 #endif

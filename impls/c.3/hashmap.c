@@ -12,7 +12,7 @@
 
 #define INITIAL_CAPACITY 16;
 
-HashMap *make_hashmap()
+HashMap *new_hashmap()
 {
     HashMap *map = (HashMap *)mal_malloc(sizeof(HashMap));
 
@@ -135,6 +135,35 @@ static bool expand_hashmap(HashMap *map)
     map->capacity = new_capacity;
 
     return true;
+}
+
+const void hashmap_delete(HashMap *map, const char *key)
+{
+    uint64_t hash = hash_key(key);
+    size_t index = (size_t)(hash & (uint64_t)(map->capacity - 1));
+    MapEntry *entries = map->entries;
+
+    // Loop till we find an empty entry.
+    while (entries[index].key != NULL)
+    {
+        if (strcmp(key, entries[index].key) == 0)
+        {
+            // Found key (it already exists), update value.
+            entries[index].value = NULL;
+            entries[index].keyType = -1;
+            entries[index].key = NULL;
+            map->length--;
+            break;
+        }
+        // Key wasn't in this slot, move to next (linear probing).
+        index++;
+
+        if (index >= map->capacity)
+        {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
+    }
 }
 
 const char *hashmap_put(HashMap *map, enum MalValueType keyType, const char *key, void *value)

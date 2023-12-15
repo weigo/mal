@@ -35,8 +35,9 @@ void mal_strcat(MalPrintBuf *buffer, const char *value)
         buffer->buffer = mal_realloc(buffer->buffer, buffer->buf_size);
     }
 
-    strcat(buffer->buffer + buffer->position, value);
+    strncat(buffer->buffer + buffer->position, value, len);
     buffer->position += len;
+//    buffer->buffer[buffer->position + 1] = '\0';
 }
 
 void print_list_like(MalPrintBuf *buffer, MalCell *value, char *startToken, char *endToken, bool readably);
@@ -135,6 +136,11 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
         mal_strcat(buffer, ")");
         break;
 
+    case MAL_ERROR:
+        mal_strcat(buffer, "Uncaught error: ");
+        pr_str_internal(buffer, value->malValue, readably);
+        break;
+
     default:
         mal_strcat(buffer, value->value);
         break;
@@ -229,7 +235,6 @@ void print_hash_map(MalPrintBuf *buffer, HashMap *hashMap, bool readably)
         else
         {
             mal_strcat(buffer, it.key);
-            break;
         }
 
         mal_strcat(buffer, " ");

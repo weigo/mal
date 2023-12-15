@@ -72,7 +72,7 @@ MalEnvironment *make_environment(MalEnvironment *parent, MalCell *binds, MalCell
         return NULL;
     }
 
-    HashMap *map = make_hashmap();
+    HashMap *map = new_hashmap();
 
     if (map == NULL)
     {
