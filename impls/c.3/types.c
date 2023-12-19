@@ -24,6 +24,11 @@ MalValue MAL_EOF = {
     .valueType = MAL_SYMBOL,
     .value = "EOF"};
 
+bool is_atom(MalValue *value)
+{
+    return value->valueType == MAL_ATOM;
+}
+
 bool is_list(MalValue *value)
 {
     return value->valueType == MAL_LIST;
@@ -79,9 +84,57 @@ bool is_executable(MalValue *value)
     return is_function(value) || is_closure(value) || is_macro(value);
 }
 
+bool is_number_type(MalValue *value)
+{
+    switch (value->valueType)
+    {
+    case MAL_FIXNUM:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
+/**
+ * Validate that given value is a MAL_FIXNUM.
+ *
+ * @return {code}true{code} when the given value a MAL_FIXNUM, {code}false{code} otherwise.
+ */
 bool is_fixnum(MalValue *value)
 {
     return value->valueType == MAL_FIXNUM;
+}
+
+/**
+ * Validate that given value is number type.
+ *
+ * @return {code}true{code} when the given value is one of
+ * <ul>
+ * <li>MAL_FIXNUM or</li>
+ * </ul>
+ */
+bool is_number(MalValue *value)
+{
+    return value->valueType == MAL_FIXNUM;
+}
+
+bool is_string_type(MalValue *value)
+{
+    switch (value->valueType)
+    {
+    case MAL_STRING:
+    case MAL_SYMBOL:
+    case MAL_KEYWORD:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
 }
 
 bool is_string(MalValue *value)
@@ -235,7 +288,7 @@ MalValue *make_closure(MalEnvironment *outer, MalCell *context)
     return value;
 }
 
-MalValue *make_string(char *value, bool unescape)
+MalValue *make_string(const char *value, bool unescape)
 {
     MalValue *_value = new_value(MAL_STRING);
 
@@ -331,6 +384,12 @@ void push(MalValue *list, MalValue *value)
     cell->cdr->value = value;
 }
 
+/**
+ * Append MalCells to end of given list.
+ *
+ * @param list the list to append cells to
+ * @param values cells to append at end of the list
+ */
 void push_all(MalValue *list, MalCell *values)
 {
     assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR);
@@ -391,7 +450,49 @@ const char *put(MalValue *map, MalValue *key, MalValue *value)
     return hashmap_put(map->hashMap, key->valueType, key->value, value);
 }
 
-void setMetadata(MalValue *value, HashMap *metadata)
+MalValue *clone(MalValue *value)
 {
-    value->metadata = metadata;
+    MalValue *result = new_value(value->valueType);
+
+    switch (value->valueType)
+    {
+    case MAL_FUNCTION:
+        result->function = value->function;
+        break;
+
+    case MAL_CLOSURE:
+        result->closure = value->closure;
+        break;
+
+    case MAL_HASHMAP:
+        result->hashMap = value->hashMap;
+        break;
+
+    case MAL_LIST:
+    case MAL_VECTOR:
+        result->list = value->list;
+        break;
+
+    case MAL_STRING:
+    case MAL_SYMBOL:
+    case MAL_KEYWORD:
+        result->value = value->value;
+        break;
+
+    case MAL_FIXNUM:
+        result->fixnum = value->fixnum;
+        break;
+
+    case MAL_ATOM:
+        result->malValue = value->malValue;
+        break;
+
+    default:
+        assert(false);
+        break;
+    }
+
+    result->metadata = value->metadata;
+
+    return result;
 }

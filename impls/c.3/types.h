@@ -88,7 +88,7 @@ typedef struct MalClosure
 typedef struct MalValue
 {
     enum MalValueType valueType;
-    HashMap *metadata;
+    MalValue *metadata;
     union
     {
         const char *value;
@@ -106,6 +106,7 @@ extern MalValue MAL_FALSE;
 extern MalValue MAL_TRUE;
 extern MalValue MAL_EOF;
 
+bool is_atom(MalValue *value);
 bool is_list(MalValue *value);
 bool is_vector(MalValue *value);
 bool is_sequence(MalValue *value);
@@ -118,8 +119,11 @@ bool is_closure(MalValue *value);
 bool is_macro(MalValue *value);
 bool is_fixnum(MalValue *value);
 bool is_string(MalValue *value);
+bool is_string_type(MalValue *value);
 bool is_hashmap(MalValue *value);
 bool is_executable(MalValue *value);
+bool is_number(MalValue *value);
+bool is_number_type(MalValue *value);
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));
@@ -128,6 +132,7 @@ MalValue *wrap_error(MalValue *value);
 MalValue *make_symbol(const char *symbol_name);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
+MalValue *clone(MalValue *value);
 
 /**
  * Create a new string value.
@@ -135,7 +140,7 @@ MalValue *make_closure(MalEnvironment *outer, MalCell *context);
  * @param value the string to put into the returned MalValue object.
  * @param unescape indicates whether '\\' should be replaced with a single '\' or the given string shall be placed unchanged in the return value.
  */
-MalValue *make_string(char *value, bool unescape);
+MalValue *make_string(const char *value, bool unescape);
 MalValue *make_fixnum(int64_t value);
 
 // Sequence related functions.
@@ -190,5 +195,5 @@ MalValue *reverse(MalValue *list);
 // HashMap related functions
 MalValue *make_hashmap();
 const char *put(MalValue *map, MalValue *key, MalValue *value);
-void setMetadata(MalValue *value, HashMap *metadata);
+void hashmap_delete(HashMap *map, const char *key);
 #endif

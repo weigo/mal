@@ -4,7 +4,7 @@
 
 #include "readline.h"
 
-char *_readline(char *prompt)
+char *_readline(const char *prompt)
 {
     return readline(prompt);
 }

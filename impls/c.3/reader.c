@@ -18,9 +18,8 @@ MalValue *read_form(Reader *reader, bool readNextToken);
  */
 MalValue *make_input_error(char *fmt, char *input, size_t len)
 {
-    char tmp[len + 1];
+    char *tmp = mal_calloc(len + 1, sizeof(char));
     strncpy(tmp, input, len);
-    tmp[len + 1] = '\0';
 
     return make_error(fmt, tmp);
 }
@@ -387,10 +386,8 @@ MalValue *read_hash_map(Reader *reader)
 MalValue *read_with_metadata(Reader *reader)
 {
     MalValue *metadata = read_form(reader, true);
-    assert(metadata->valueType == MAL_HASHMAP);
     MalValue *value = read_form(reader, true);
-    setMetadata(value, metadata->hashMap);
-    free(metadata);
+    value->metadata = metadata;
     MalValue *list = new_value(MAL_LIST);
     push(list, make_symbol(SYMBOL_WITH_META));
 

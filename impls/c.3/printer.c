@@ -37,7 +37,7 @@ void mal_strcat(MalPrintBuf *buffer, const char *value)
 
     strncat(buffer->buffer + buffer->position, value, len);
     buffer->position += len;
-//    buffer->buffer[buffer->position + 1] = '\0';
+    //    buffer->buffer[buffer->position + 1] = '\0';
 }
 
 void print_list_like(MalPrintBuf *buffer, MalCell *value, char *startToken, char *endToken, bool readably);
@@ -149,7 +149,7 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
     if (value->metadata != NULL)
     {
         mal_strcat(buffer, " ");
-        print_hash_map(buffer, value->metadata, false);
+        pr_str_internal(buffer, value->metadata, readably);
         mal_strcat(buffer, ")");
     }
 }
@@ -267,7 +267,7 @@ char *pr_str(MalValue *value, bool readably)
         break;
 
     case MAL_HASHMAP:
-        buf_size = 2 * 10 * value->hashMap->length;
+        buf_size = 2 * 10 * (value->hashMap ? 0 : value->hashMap->length);
         break;
 
     case MAL_CLOSURE:

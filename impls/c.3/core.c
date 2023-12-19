@@ -7,6 +7,8 @@
 #include "symbol.h"
 #include "types.h"
 #include "gc.h"
+#include "libs/readline/readline.h"
+#include <sys/time.h>
 
 extern FILE *output_stream;
 
@@ -139,7 +141,7 @@ MalValue *empty_p(MalCell *value)
         return &MAL_TRUE;
     }
 
-    return make_error("Illegal argument type!");
+    return make_error("'empty': illegal argument, exepcted list or vector");
 }
 
 int64_t length(MalValue *list)
@@ -362,9 +364,10 @@ bool are_maps_equal(HashMap *left, HashMap *right)
 
 bool is_equal_by_type(MalValue *left, MalValue *right)
 {
-    assert(left->valueType == right->valueType);
+    //    assert(left->valueType == right->valueType);
 
     bool result = false;
+
     switch (left->valueType)
     {
     case MAL_FIXNUM:
@@ -393,9 +396,24 @@ bool is_equal_by_type(MalValue *left, MalValue *right)
     return result;
 }
 
+bool is_comparable(MalValue *left, MalValue *right)
+{
+    if (is_string_type(left) && is_string_type(right))
+    {
+        return true;
+    }
+
+    if (is_number_type(left) && is_number_type(right))
+    {
+        return true;
+    }
+
+    return left->valueType == right->valueType;
+}
+
 bool is_equal(MalValue *left, MalValue *right)
 {
-    if (left->valueType == right->valueType)
+    if (is_comparable(left, right))
     {
         return is_equal_by_type(left, right);
     }
@@ -492,8 +510,8 @@ char *read_file(const char *file_name)
         len = ftell(stream);
         fseek(stream, 0, SEEK_SET);
 
-        buffer = mal_malloc(len);
-        bytes_read = fread(buffer, 1, len, stream);
+        buffer = mal_malloc(len + 1);
+        bytes_read = fread(buffer, sizeof(char), len, stream);
         fclose(stream);
 
         if (bytes_read != len)
@@ -557,19 +575,44 @@ MalValue *atom(MalCell *values)
     return atom;
 }
 
-bool is_atom(MalValue *value)
-{
-    return value->valueType == MAL_ATOM;
-}
-
 MalValue *atom_p(MalCell *values)
 {
-    if (!values || !values->value)
+    if (!values || !values->value || values->cdr)
     {
-        return make_error("Illegal number of arguments!");
+        return make_error("'atom?': illegal number of arguments!");
     }
 
     return is_atom(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *number_p(MalCell *values)
+{
+    if (!values || !values->value || values->cdr)
+    {
+        return make_error("'number?': illegal number of arguments!");
+    }
+
+    return is_number(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *string_p(MalCell *values)
+{
+    if (!values || !values->value || values->cdr)
+    {
+        return make_error("'string?': illegal number of arguments!");
+    }
+
+    return is_string(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+MalValue *func_p(MalCell *values)
+{
+    if (!values || !values->value || values->cdr)
+    {
+        return make_error("'fn?': illegal number of arguments!");
+    }
+
+    return is_executable(values->value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *deref(MalCell *values)
@@ -1155,6 +1198,232 @@ MalValue *map(MalCell *values)
     return result;
 }
 
+MalValue *mal_readline(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'readline': illegal count of arguments, exactly one argument expected");
+    }
+
+    if (!is_string(values->value))
+    {
+        return make_error("'readline': illegal argument, string expected");
+    }
+
+    char *prompt = _readline(values->value->value);
+
+    if (prompt)
+    {
+        _add_history(prompt);
+        return make_string(prompt, true);
+    }
+
+    return &MAL_NIL;
+}
+
+MalValue *time_ms(MalCell *values)
+{
+    if (values)
+    {
+        return make_error("'time-ms': takes no arguments");
+    }
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    return make_fixnum(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
+MalValue *seq(MalCell *values)
+{
+    if (!values || !values->value || values->cdr)
+    {
+        return make_error("'seq': illegal count of arguments, expected a list, vector, string or nil");
+    }
+
+    if (nil_p(values) == &MAL_TRUE)
+    {
+        return &MAL_NIL;
+    }
+
+    if (!is_sequence(values->value) && !is_string(values->value))
+    {
+        return make_error("'seq': illegal argument, expected a list, vector, string or nil as first argument");
+    }
+
+    if (is_string(values->value))
+    {
+        MalValue *result = make_list(NULL);
+
+        size_t len = strlen(values->value->value);
+
+        for (size_t i = 0; i < len; i++)
+        {
+            char *s = mal_calloc(2, sizeof(char));
+            s[0] = values->value->value[i];
+            s[1] = '\0';
+            push(result, make_string(s, false));
+        }
+
+        return result;
+    }
+
+    if (empty_p(values))
+    {
+        return &MAL_NIL;
+    }
+
+    if (is_vector(values->value))
+    {
+        return make_list(values->value->list);
+    }
+
+    return values->value;
+}
+
+MalValue *meta(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'meta': illegal argument, expected exactly one argument");
+    }
+
+    if (!is_sequence(values->value) && !is_hashmap(values->value) && !is_executable(values->value))
+    {
+        return make_error("'meta': expected argument of type list/vector/hashmap or function/closure");
+    }
+
+    if (!values->value->metadata)
+    {
+        return &MAL_NIL;
+    }
+
+    return values->value->metadata;
+}
+
+MalValue *with_meta(MalCell *values)
+{
+    if (!values || (values->cdr && values->cdr->cdr))
+    {
+        return make_error("'with-meta': illegal argument, expected exactly two arguments");
+    }
+
+    if (!is_sequence(values->value) && !is_hashmap(values->value) && !is_executable(values->value))
+    {
+        return make_error("'meta': expected argument of type list/vector/hashmap or function/closure");
+    }
+
+    MalValue *result = clone(values->value);
+    result->metadata = values->cdr->value;
+
+    return result;
+}
+
+/**
+ * Append values of given cells at end of the given sequence.
+ *
+ * @param vector to append values to
+ * @param values list of MalCells to append to the given sequence
+ */
+void sequence_append_values(MalValue *vector, MalCell *values)
+{
+    assert(vector->valueType == MAL_VECTOR || vector->valueType == MAL_LIST);
+
+    if (!values)
+    {
+        return;
+    }
+
+    MalCell *tail = mal_calloc(1, sizeof(MalCell));
+    MalCell *head = tail;
+    MalCell *current = values;
+
+    while (current)
+    {
+        tail->value = current->value;
+        current = current->cdr;
+
+        if (current)
+        {
+            tail->cdr = mal_calloc(1, sizeof(MalCell));
+            tail = tail->cdr;
+        }
+    }
+
+    // target vector was empty
+    if (!vector->list)
+    {
+        vector->list = head;
+        return;
+    }
+
+    // find last element of original vector
+    current = vector->list;
+
+    while (current->cdr)
+    {
+        current = current->cdr;
+    }
+
+    // and append new tail
+    current->cdr = head;
+}
+
+MalValue *vector_clone(MalValue *orig)
+{
+    MalValue *result = make_vector(NULL);
+
+    sequence_append_values(result, orig->list);
+
+    return result;
+}
+
+MalValue *list_clone(MalValue *orig)
+{
+    MalValue *result = make_list(NULL);
+
+    sequence_append_values(result, orig->list);
+
+    return result;
+}
+
+MalValue *_conj(MalCell *values)
+{
+    if (!values)
+    {
+        return make_error("'conj': expects at least two arguments");
+    }
+
+    if (!is_sequence(values->value))
+    {
+        return make_error("'conj': expects a list/vector as first argument");
+    }
+
+    if (is_vector(values->value))
+    {
+        MalValue *vector = vector_clone(values->value);
+        sequence_append_values(vector, values->cdr);
+
+        return vector;
+    }
+
+    if (is_list(values->value))
+    {
+        MalValue *list = list_clone(values->value);
+        MalCell *current = values->cdr;
+
+        while (current)
+        {
+            prepend(list, current->value);
+            current = current->cdr;
+        }
+
+        return list;
+    }
+
+    assert(false);
+}
+
 HashMap *core_namespace()
 {
     HashMap *ns = new_hashmap();
@@ -1220,6 +1489,16 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "apply", new_function(apply));
 
     hashmap_put(ns, MAL_SYMBOL, "map", new_function(map));
+
+    hashmap_put(ns, MAL_SYMBOL, "readline", new_function(mal_readline));
+    hashmap_put(ns, MAL_SYMBOL, "number?", new_function(number_p));
+    hashmap_put(ns, MAL_SYMBOL, "time-ms", new_function(time_ms));
+    hashmap_put(ns, MAL_SYMBOL, "string?", new_function(string_p));
+    hashmap_put(ns, MAL_SYMBOL, "fn?", new_function(func_p));
+    hashmap_put(ns, MAL_SYMBOL, "seq", new_function(seq));
+    hashmap_put(ns, MAL_SYMBOL, "meta", new_function(meta));
+    hashmap_put(ns, MAL_SYMBOL, "with-meta", new_function(with_meta));
+    hashmap_put(ns, MAL_SYMBOL, "conj", new_function(_conj));
 
     return ns;
 }

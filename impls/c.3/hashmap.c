@@ -137,7 +137,7 @@ static bool expand_hashmap(HashMap *map)
     return true;
 }
 
-const void hashmap_delete(HashMap *map, const char *key)
+void hashmap_delete(HashMap *map, const char *key)
 {
     uint64_t hash = hash_key(key);
     size_t index = (size_t)(hash & (uint64_t)(map->capacity - 1));
