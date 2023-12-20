@@ -58,6 +58,28 @@ void fill_token(Token *token, enum TokenType tokenType, char *value, unsigned in
     }
 }
 
+bool is_symbol_terminating_character(char ch)
+{
+    switch (ch)
+    {
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case '(':
+    case ')':
+    case ',':
+    case ';':
+    case '\0':
+        return true;
+
+    default:
+        break;
+    }
+
+    return isspace(ch);
+}
+
 enum TokenType next_token(Reader *reader)
 {
     while (isspace(*reader->input) || ',' == *reader->input)
@@ -176,7 +198,7 @@ enum TokenType next_token(Reader *reader)
         }
         else
         {
-            while ((ch = peek(reader->input)) && ch != '\0' && !isspace(ch))
+            while (!is_symbol_terminating_character(peek(reader->input)))
             {
                 reader->input++;
             }
@@ -326,6 +348,18 @@ MalValue *read_atom(Token *token)
         if (':' == *token->value)
         {
             value = make_value(MAL_KEYWORD, token->value);
+        }
+        else if (strcmp("nil", token->value) == 0)
+        {
+            value = &MAL_NIL;
+        }
+        else if (strcmp("false", token->value) == 0)
+        {
+            value = &MAL_FALSE;
+        }
+        else if (strcmp("true", token->value) == 0)
+        {
+            value = &MAL_TRUE;
         }
         else
         {

@@ -12,13 +12,16 @@ enum MalValueType
     MAL_ERROR,
     MAL_HASHMAP,
     MAL_FIXNUM,
+    MAL_FUNCTION,
     MAL_KEYWORD,
     MAL_LIST,
     MAL_NUMBER,
     MAL_STRING,
     MAL_SYMBOL,
     MAL_VECTOR,
-    MAL_FUNCTION
+    MAL_TYPE_FALSE,
+    MAL_TYPE_NIL,
+    MAL_TYPE_TRUE,
 };
 
 typedef struct MapEntry
@@ -124,6 +127,10 @@ bool is_hashmap(MalValue *value);
 bool is_executable(MalValue *value);
 bool is_number(MalValue *value);
 bool is_number_type(MalValue *value);
+bool is_nil(MalValue *value);
+bool is_true(MalValue *value);
+bool is_false(MalValue *value);
+
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));

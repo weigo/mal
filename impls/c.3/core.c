@@ -577,7 +577,7 @@ MalValue *atom(MalCell *values)
 
 MalValue *atom_p(MalCell *values)
 {
-    if (!values || !values->value || values->cdr)
+    if (!values || !values->value)
     {
         return make_error("'atom?': illegal number of arguments!");
     }
@@ -1030,7 +1030,7 @@ MalValue *nil_p(MalCell *values)
 
     MalValue *value = values->value;
 
-    return is_equal(&MAL_NIL, value) ? &MAL_TRUE : &MAL_FALSE;
+    return is_nil(value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *true_p(MalCell *values)
@@ -1241,9 +1241,9 @@ MalValue *seq(MalCell *values)
         return make_error("'seq': illegal count of arguments, expected a list, vector, string or nil");
     }
 
-    if (nil_p(values) == &MAL_TRUE)
+    if (is_nil(values->value))
     {
-        return &MAL_NIL;
+        return values->value;
     }
 
     if (!is_sequence(values->value) && !is_string(values->value))

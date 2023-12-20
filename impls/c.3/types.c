@@ -9,20 +9,35 @@
 #include "printer.h"
 
 MalValue MAL_NIL = {
-    .valueType = MAL_SYMBOL,
+    .valueType = MAL_TYPE_NIL,
     .value = "nil"};
 
 MalValue MAL_FALSE = {
-    .valueType = MAL_SYMBOL,
+    .valueType = MAL_TYPE_FALSE,
     .value = "false"};
 
 MalValue MAL_TRUE = {
-    .valueType = MAL_SYMBOL,
+    .valueType = MAL_TYPE_TRUE,
     .value = "true"};
 
 MalValue MAL_EOF = {
     .valueType = MAL_SYMBOL,
     .value = "EOF"};
+
+bool is_nil(MalValue *value)
+{
+    return value == &MAL_NIL;
+}
+
+bool is_true(MalValue *value)
+{
+    return value == &MAL_TRUE;
+}
+
+bool is_false(MalValue *value)
+{
+    return value == &MAL_FALSE;
+}
 
 bool is_atom(MalValue *value)
 {
