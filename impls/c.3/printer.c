@@ -51,11 +51,6 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
         return;
     }
 
-    if (value->metadata != NULL)
-    {
-        mal_strcat(buffer, "(with-meta ");
-    }
-
     switch (value->valueType)
     {
     case MAL_LIST:
@@ -144,13 +139,6 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
     default:
         mal_strcat(buffer, value->value);
         break;
-    }
-
-    if (value->metadata != NULL)
-    {
-        mal_strcat(buffer, " ");
-        pr_str_internal(buffer, value->metadata, readably);
-        mal_strcat(buffer, ")");
     }
 }
 
