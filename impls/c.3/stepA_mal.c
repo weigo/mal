@@ -560,17 +560,26 @@ MalValue *quasiquote(MalValue *value)
 
 MalValue *defmacro(MalCell *head, MalEnvironment *environment)
 {
+    if (!head || !head->cdr || !head->cdr->cdr)
+    {
+        return make_error("'defmacro!': expected exactly two arguments");
+    }
+
+    if (!is_symbol(head->cdr->value))
+    {
+        return make_error("'defmacro!': expected a symbol as first argument");
+    }
+
     MalValue *t = EVAL(head->cdr->cdr->value, environment);
 
-    if (!is_closure(t))
+    if (is_error(t))
     {
-        return make_error("defmacro failed: '%s'", print_values_readably(head)->value);
+        return t;
     }
 
     MalValue *_clone = mal_clone(t);
     _clone->closure->is_macro = true;
 
-    // !t means symbol not found and should already be recorded in struct error
     if (set_in_environment(environment, head->cdr->value, _clone))
     {
         // FIXME: Report to repl that a value has been redefined.

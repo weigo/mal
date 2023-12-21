@@ -476,8 +476,15 @@ MalValue *mal_clone(MalValue *value)
         break;
 
     case MAL_CLOSURE:
-        result->closure = value->closure;
-        break;
+    {
+        result->closure = mal_calloc(1, sizeof(MalClosure));
+        result->closure->ast = value->closure->ast;
+        result->closure->bindings = value->closure->bindings;
+        result->closure->environment = value->closure->environment;
+        result->closure->is_macro = value->closure->is_macro;
+        result->closure->rest_symbol = value->closure->rest_symbol;
+    }
+    break;
 
     case MAL_HASHMAP:
         result->hashMap = value->hashMap;
