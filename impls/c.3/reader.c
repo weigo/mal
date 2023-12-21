@@ -421,11 +421,12 @@ MalValue *read_with_metadata(Reader *reader)
 {
     MalValue *metadata = read_form(reader, true);
     MalValue *value = read_form(reader, true);
-    value->metadata = metadata;
     MalValue *list = new_value(MAL_LIST);
     push(list, make_symbol(SYMBOL_WITH_META));
+    push(list, value);
+    push(list, metadata);
 
-    return value;
+    return list;
 }
 
 MalValue *read_form(Reader *reader, bool readNextToken)
