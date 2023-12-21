@@ -96,7 +96,7 @@ bool is_macro(MalValue *value)
 
 bool is_executable(MalValue *value)
 {
-    return is_function(value) || is_closure(value) || is_macro(value);
+    return is_function(value) || is_closure(value);
 }
 
 bool is_number_type(MalValue *value)
@@ -207,7 +207,7 @@ MalValue *make_error(char *fmt, ...)
     {
         char buffer[buf_len];
         va_start(arg_ptr, fmt);
-        result = vsprintf(buffer, fmt, arg_ptr);
+        result = sprintf(buffer, fmt, arg_ptr);
 
         if (result > 0)
         {
@@ -465,7 +465,7 @@ const char *put(MalValue *map, MalValue *key, MalValue *value)
     return hashmap_put(map->hashMap, key->valueType, key->value, value);
 }
 
-MalValue *clone(MalValue *value)
+MalValue *mal_clone(MalValue *value)
 {
     MalValue *result = new_value(value->valueType);
 

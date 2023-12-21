@@ -139,7 +139,7 @@ MalValue *wrap_error(MalValue *value);
 MalValue *make_symbol(const char *symbol_name);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
-MalValue *clone(MalValue *value);
+MalValue *mal_clone(MalValue *value);
 
 /**
  * Create a new string value.
