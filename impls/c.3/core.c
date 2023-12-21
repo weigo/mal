@@ -133,12 +133,7 @@ MalValue *empty_p(MalCell *value)
 {
     if (is_sequence(value->value))
     {
-        if (value->value->list && value->value->list->value)
-        {
-            return &MAL_FALSE;
-        }
-
-        return &MAL_TRUE;
+        return value->value->list ? &MAL_FALSE : &MAL_TRUE;
     }
 
     return make_error("'empty': illegal argument, exepcted list or vector");
@@ -612,16 +607,21 @@ MalValue *func_p(MalCell *values)
         return make_error("'fn?': illegal number of arguments!");
     }
 
-    return is_executable(values->value) ? &MAL_TRUE : &MAL_FALSE;
+    return is_executable(values->value) && !is_macro(values->value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *deref(MalCell *values)
 {
     MalValue *result = atom_p(values);
 
-    if (result->valueType == MAL_ERROR)
+    if (is_error(result))
     {
         return result;
+    }
+
+    if (is_false(result))
+    {
+        return make_error("'deref': argument is not an atom");
     }
 
     return values->value->malValue;
@@ -1253,9 +1253,15 @@ MalValue *seq(MalCell *values)
 
     if (is_string(values->value))
     {
-        MalValue *result = make_list(NULL);
 
         size_t len = strlen(values->value->value);
+
+        if (len == 0)
+        {
+            return &MAL_NIL;
+        }
+
+        MalValue *result = make_list(NULL);
 
         for (size_t i = 0; i < len; i++)
         {
@@ -1268,7 +1274,7 @@ MalValue *seq(MalCell *values)
         return result;
     }
 
-    if (empty_p(values))
+    if (empty_p(values) == &MAL_TRUE)
     {
         return &MAL_NIL;
     }
@@ -1313,7 +1319,7 @@ MalValue *with_meta(MalCell *values)
         return make_error("'meta': expected argument of type list/vector/hashmap or function/closure");
     }
 
-    MalValue *result = clone(values->value);
+    MalValue *result = mal_clone(values->value);
     result->metadata = values->cdr->value;
 
     return result;
