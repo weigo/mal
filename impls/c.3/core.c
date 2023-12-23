@@ -9,6 +9,7 @@
 #include "gc.h"
 #include "libs/readline/readline.h"
 #include <sys/time.h>
+#include <stdio.h>
 
 extern FILE *output_stream;
 
@@ -938,8 +939,11 @@ MalValue *keyword(MalCell *values)
 
     if (is_string(value))
     {
-        char *keyword = mal_calloc(strlen(value->value) + 2, sizeof(char));
-        sprintf(keyword, ":%s", value->value);
+        size_t len = strlen(value->value) + 2;
+        char *keyword = mal_calloc(len, sizeof(char));
+        int written = snprintf(keyword, len, ":%s", value->value);
+
+        assert(written <= len);
 
         return make_value(MAL_KEYWORD, keyword);
     }
@@ -1042,7 +1046,7 @@ MalValue *true_p(MalCell *values)
 
     MalValue *value = values->value;
 
-    return is_equal(&MAL_TRUE, value) ? &MAL_TRUE : &MAL_FALSE;
+    return is_true(value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *false_p(MalCell *values)
@@ -1054,7 +1058,7 @@ MalValue *false_p(MalCell *values)
 
     MalValue *value = values->value;
 
-    return is_equal(&MAL_FALSE, value) ? &MAL_TRUE : &MAL_FALSE;
+    return is_false(value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
 MalValue *symbol(MalCell *values)

@@ -158,6 +158,11 @@ MalValue *eval_ast(MalValue *value, MalEnvironment *environment)
         {
             tmp = EVAL(current->value, environment);
 
+            if (!tmp)
+            {
+                return make_error("'EVAL': '%s' evaluated to 'NULL'", current->value);
+            }
+
             if (is_error(tmp))
             {
                 return tmp;
@@ -766,6 +771,7 @@ char *get_history_filename()
 
 int main(int argc, char **argv)
 {
+    const char *fmt = "(load-file \"%s\")\n";
     output_stream = stdout;
     global_environment = make_initial_environment();
 
@@ -784,8 +790,11 @@ int main(int argc, char **argv)
             push(args, make_string(argv[i], false));
         }
 
-        char buffer[strlen(argv[1]) + 1 + 13];
-        sprintf(buffer, "(load-file \"%s\")\n", argv[1]);
+        size_t len = strlen(argv[1]) + strlen(fmt);
+        char buffer[len];
+        int written = snprintf(buffer, len, fmt, argv[1]);
+        assert(written <= len);
+        //        buffer[written + 1] = '\0';
         rep(buffer, global_environment, false);
 
         return 0;
