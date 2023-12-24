@@ -712,7 +712,7 @@ MalValue *EVAL(MalValue *value, MalEnvironment *environment)
             }
             else if (arg_count > bindings_count && !closure->rest_symbol)
             {
-                return make_error("Too many arguments! Expected '%d', but got '%d'. Perhaps you didn't supply an argument consuming the rest of the arugment list?", bindings_count, arg_count);
+                return make_error("Too many arguments! Expected '%d', but got '%d'. Perhaps you didn't supply an argument consuming the rest of the argument list?\n%s", bindings_count, arg_count, pr_str(head->value, true));
             }
 
             environment = make_environment(closure->environment, closure->bindings->list, head->cdr, closure->rest_symbol);
