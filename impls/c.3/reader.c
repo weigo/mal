@@ -469,6 +469,7 @@ MalValue *read_form(Reader *reader, bool readNextToken)
     case TOKEN_RIGHT_BRACE:
     case TOKEN_KOMMA:
     case TOKEN_COMMENT:
+        value =  make_value(MAL_COMMENT, reader->token->value);
         break;
     case TOKEN_CARET:
         value = read_with_metadata(reader);
