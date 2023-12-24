@@ -207,9 +207,9 @@ MalValue *make_error(char *fmt, ...)
     {
         char buffer[buf_len];
         va_start(arg_ptr, fmt);
-        result = sprintf(buffer, fmt, arg_ptr);
+        result = vsnprintf(buffer, buf_len, fmt, arg_ptr);
 
-        if (result > 0)
+        if (result <= buf_len)
         {
             message = (char *)mal_malloc(result + 1);
             strcpy(message, buffer);
