@@ -506,7 +506,7 @@ char *read_file(const char *file_name)
         len = ftell(stream);
         fseek(stream, 0, SEEK_SET);
 
-        buffer = mal_malloc(len + 1);
+        buffer = mal_calloc(len + 1, sizeof(char));
         bytes_read = fread(buffer, sizeof(char), len, stream);
         fclose(stream);
 
@@ -514,10 +514,6 @@ char *read_file(const char *file_name)
         {
             free(buffer);
             buffer = NULL;
-        }
-        else
-        {
-            buffer[len] = '\0';
         }
     }
 
@@ -1119,7 +1115,7 @@ MalValue *_apply(MalValue *executable, MalCell *params)
         }
         else if (arg_count > bindings_count && !closure->rest_symbol)
         {
-            return make_error("Too many arguments! Expected '%d', but got '%d'. Perhaps you didn't supply an argument consuming the rest of the arugment list?", bindings_count, arg_count);
+            return make_error("Too many arguments! Expected '%d', but got '%s'. Perhaps you didn't supply an argument consuming the rest of the argument list?", bindings_count, print_values_readably(args->list)->value);
         }
 
         MalEnvironment *environment = make_environment(closure->environment, closure->bindings->list, args->list, closure->rest_symbol);
