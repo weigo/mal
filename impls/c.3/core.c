@@ -160,18 +160,9 @@ int64_t _count(MalCell *value)
     int64_t count = 0;
     MalCell *current = value;
 
-    if (!current)
+    if (!current || is_nil(current->value))
     {
         return count;
-    }
-
-    if (is_sequence(value->value))
-    {
-        current = value->value->list;
-    }
-    else if (current->value == &MAL_NIL)
-    {
-        current = NULL;
     }
 
     while (current && current->value)
