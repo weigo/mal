@@ -10,14 +10,6 @@
 #include "symbol.h"
 #include "types.h"
 
-#define MULTILINE_STRING(...) #__VA_ARGS__
-
-const char *LISP_LIBRARY =
-    "(do \n"
-    "(def! not (fn* (a) (if a false true)))\n"
-    "(def! load-file (fn* (f)\n"
-    "                     (eval (read-string (str \"(do \" (slurp f) \"\nnil)\"))))))";
-
 static const char *HISTORY_FILENAME = ".mal_history";
 FILE *output_stream;
 extern MalEnvironment *global_environment;
@@ -779,7 +771,8 @@ int main(int argc, char **argv)
     set_in_environment(global_environment, make_symbol("*ARGV*"), args);
     set_in_environment(global_environment, make_symbol("*host-language*"), make_string("c.3", false));
 
-    rep(LISP_LIBRARY, global_environment, false);
+    rep("(def! not (fn* (a) (if a false true)))", global_environment, false);    
+    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", global_environment, false);
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", global_environment, false);
     rep("(println (str \"Mal [\" *host-language* \"]\"))", global_environment, false);
 
