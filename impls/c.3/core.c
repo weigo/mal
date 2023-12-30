@@ -472,7 +472,7 @@ MalValue *equals(MalCell *values)
 
 MalValue *read_string(MalCell *values)
 {
-    if (!values || values->value->valueType != MAL_STRING)
+    if (!values || !is_string(values->value))
     {
         return make_error("Invalid argument!");
     }
@@ -1206,7 +1206,7 @@ MalValue *mal_readline(MalCell *values)
     if (prompt)
     {
         _add_history(prompt);
-        return make_string(prompt, true);
+        return make_string(prompt, false);
     }
 
     return &MAL_NIL;
