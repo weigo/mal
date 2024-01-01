@@ -113,6 +113,23 @@ bool is_number_type(MalValue *value)
     return false;
 }
 
+bool is_self_evaluating(MalValue *value)
+{
+    bool result = true;
+
+    switch (value->valueType)
+    {
+        case MAL_LIST:
+        case MAL_VECTOR:
+        case MAL_HASHMAP:
+        case MAL_SYMBOL:
+    default:
+        result = false;
+    }
+
+    return result;
+}
+
 /**
  * Validate that given value is a MAL_FIXNUM.
  *
