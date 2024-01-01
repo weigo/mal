@@ -9,13 +9,35 @@
 #include "core.h"
 #include "symbol.h"
 #include "types.h"
+#include "gc.h"
+
+typedef struct SpecialSexpressionHandlerSpec
+{
+    void (*continue_handler)(MalValue **, MalEnvironment **);
+    MalValue *(*return_handler)(MalCell *, MalEnvironment *);
+    bool do_return;
+} SpecialSexpressionHandlerSpec;
 
 static const char *HISTORY_FILENAME = ".mal_history";
 FILE *output_stream;
 extern MalEnvironment *global_environment;
+const HashMap *_special_s_expression_handlers;
 
 void PRINT(MalValue *value);
 MalValue *EVAL(MalValue *value, MalEnvironment *environment);
+
+SpecialSexpressionHandlerSpec *new_sepecial_s_exression_handler(void (*continue_handler)(MalValue **, MalEnvironment **),
+                                                                MalValue *(*return_handler)(MalCell *, MalEnvironment *),
+                                                                bool do_return)
+{
+    SpecialSexpressionHandlerSpec *spec = mal_malloc(sizeof(SpecialSexpressionHandlerSpec));
+
+    spec->continue_handler = continue_handler;
+    spec->return_handler = return_handler;
+    spec->do_return = do_return;
+
+    return spec;
+}
 
 /**
  * Add a is_macro_call function: This function takes arguments ast and env.
@@ -76,19 +98,19 @@ MalValue *macroexpand(MalValue *value, MalEnvironment *environment)
  * @param value value
  * @param environment
  */
-MalValue *eval_macroexpand(MalValue *value, MalEnvironment *environment)
+MalValue *eval_macroexpand(MalCell *list, MalEnvironment *environment)
 {
-    if (!value->list->cdr)
+    if (!list)
     {
         return &MAL_NIL;
     }
 
-    if (value->list->cdr->cdr)
+    if (list->cdr)
     {
         return make_error("macroexpand expects exactly one argument!");
     }
 
-    return macroexpand(value->list->cdr->value, environment);
+    return macroexpand(list->value, environment);
 }
 
 MalValue *READ(Reader *reader)
@@ -206,12 +228,12 @@ MalValue *eval_ast(MalValue *value, MalEnvironment *environment)
     return result;
 }
 
-MalValue *def_exclamation_mark(MalCell *head, MalEnvironment *environment)
+MalValue *def_exclamation_mark(MalCell *list, MalEnvironment *environment)
 {
-    MalValue *t = EVAL(head->cdr->cdr->value, environment);
+    MalValue *t = EVAL(list->cdr->value, environment);
 
     // !t means symbol not found and should already be recorded in struct error
-    if (t && !is_error(t) && set_in_environment(environment, head->cdr->value, t))
+    if (t && !is_error(t) && set_in_environment(environment, list->value, t))
     {
         // FIXME: Report to repl that a value has been redefined.
         //        register_error(VALUE_REDEFINED, head->cdr->value->value);
@@ -380,24 +402,22 @@ MalValue *fn_star(MalCell *context, MalEnvironment *environment)
     return make_closure(environment, context);
 }
 
-MalValue *quote(MalValue *value, MalEnvironment *environment)
+MalValue *quote(MalCell *value, MalEnvironment *environment)
 {
-    MalCell *tmp = value->list->cdr;
-
-    if (!tmp)
+    if (!value)
     {
         return &MAL_NIL;
     }
 
-    if (tmp->cdr)
+    if (value->cdr)
     {
-        return make_error("Too many arguments to 'quote': '%s'!", print_values_readably(tmp->cdr)->value);
+        return make_error("Too many arguments to 'quote': '%s'!", print_values_readably(value->cdr)->value);
     }
 
-    return tmp->value;
+    return value->value;
 }
 
-MalValue *quasiquote(MalValue *value);
+MalValue *quasiquote(MalCell *list, MalEnvironment *environment);
 MalValue *quasiquote_list(MalValue *value);
 
 MalValue *quasiquote_vector(MalValue *value)
@@ -462,7 +482,7 @@ MalValue *quasiquote_list(MalValue *value)
         MalValue *spliced = make_list(NULL);
         push(spliced, make_symbol(SYMBOL_CONCAT));
         push(spliced, first->list->cdr->value);
-        MalValue *rest = quasiquote(make_list(list->cdr));
+        MalValue *rest = quasiquote(list->cdr, NULL);
 
         if (is_error(rest))
         {
@@ -474,14 +494,14 @@ MalValue *quasiquote_list(MalValue *value)
         return spliced;
     }
 
-    first = quasiquote(first);
+    first = quasiquote(list, NULL);
 
     if (is_error(first))
     {
         return first;
     }
 
-    MalValue *rest = quasiquote(make_list(list->cdr));
+    MalValue *rest = quasiquote(list->cdr, NULL);
 
     if (is_error(rest))
     {
@@ -517,9 +537,13 @@ MalValue *quasiquote_list(MalValue *value)
  * If ast is a map or a symbol, return a list containing: the "quote" symbol, then ast.
  *
  * Else return ast unchanged. Such forms are not affected by evaluation, so you may quote them as in the previous case if implementation is easier.
+ *
+ * @param *list List of MalCells
+ * @param *environment unused (for signature compatibility with other special s expression handlers)
  */
-MalValue *quasiquote(MalValue *value)
+MalValue *quasiquote(MalCell *list, MalEnvironment *environment)
 {
+    MalValue *value = list->value;
     MalValue *result = NULL;
 
     switch (value->valueType)
@@ -555,19 +579,19 @@ MalValue *quasiquote(MalValue *value)
     return result;
 }
 
-MalValue *defmacro(MalCell *head, MalEnvironment *environment)
+MalValue *defmacro(MalCell *list, MalEnvironment *environment)
 {
-    if (!head || !head->cdr || !head->cdr->cdr)
+    if (!list || !list->cdr)
     {
         return make_error("'defmacro!': expected exactly two arguments");
     }
 
-    if (!is_symbol(head->cdr->value))
+    if (!is_symbol(list->value))
     {
         return make_error("'defmacro!': expected a symbol as first argument");
     }
 
-    MalValue *t = EVAL(head->cdr->cdr->value, environment);
+    MalValue *t = EVAL(list->cdr->value, environment);
 
     if (is_error(t))
     {
@@ -577,7 +601,7 @@ MalValue *defmacro(MalCell *head, MalEnvironment *environment)
     MalValue *_clone = mal_clone(t);
     _clone->closure->is_macro = true;
 
-    if (set_in_environment(environment, head->cdr->value, _clone))
+    if (set_in_environment(environment, list->value, _clone))
     {
         // FIXME: Report to repl that a value has been redefined.
         //        register_error(VALUE_REDEFINED, head->cdr->value->value);
@@ -597,7 +621,7 @@ MalValue *EVAL(MalValue *value, MalEnvironment *environment)
             return &MAL_NIL;
         }
 
-        if (is_error(current))
+        if (is_self_evaluating(current))
         {
             return current;
         }
@@ -618,54 +642,26 @@ MalValue *EVAL(MalValue *value, MalEnvironment *environment)
             return current;
         }
 
-        if (is_named_symbol(head->value, SYMBOL_DEF_BANG))
+        // handle special S expressions
+        if (is_symbol(head->value))
         {
-            return def_exclamation_mark(head, environment);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_LET_STAR))
-        {
-            let_star(&current, &environment);
-            continue;
-        }
-        else if (is_named_symbol(head->value, SYMBOL_DO))
-        {
-            do_(&current, &environment);
-            continue;
-        }
-        else if (is_named_symbol(head->value, SYMBOL_IF))
-        {
-            if_(&current, &environment);
-            continue;
-        }
-        else if (is_named_symbol(head->value, SYMBOL_FN_STAR))
-        {
-            return fn_star(head->cdr, environment);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_QUOTE))
-        {
-            return quote(current, environment);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_QUASI_QUOTE_EXPAND))
-        {
-            return quasiquote(head->cdr->value);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_QUASI_QUOTE))
-        {
-            current = quasiquote(head->cdr->value);
-            continue;
-        }
-        else if (is_named_symbol(head->value, SYMBOL_DEFMACRO))
-        {
-            return defmacro(head, environment);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_MACRO_EXPAND))
-        {
-            return eval_macroexpand(current, environment);
-        }
-        else if (is_named_symbol(head->value, SYMBOL_TRY_STAR))
-        {
-            eval_try_star(&current, &environment);
-            continue;
+            SpecialSexpressionHandlerSpec *spec = hashmap_get(_special_s_expression_handlers, head->value->value);
+
+            if (spec)
+            {
+                if (!spec->do_return)
+                {
+                    spec->continue_handler(&current, &environment);
+                    continue;
+                }
+
+                return spec->return_handler(head->cdr, environment);
+            }
+            else if (is_named_symbol(head->value, SYMBOL_QUASI_QUOTE))
+            {
+                current = quasiquote(head->cdr, NULL);
+                continue;
+            }
         }
 
         // ast is a list: call eval_ast to get a new evaluated list.
@@ -718,7 +714,6 @@ MalValue *EVAL(MalValue *value, MalEnvironment *environment)
             continue;
         }
 
-        //        return make_error("Not callable: %s.", pr_str(tmp, true));
         return tmp;
     }
 }
@@ -737,7 +732,7 @@ void rep(const char *input, MalEnvironment *environment, bool print_result)
 
     MalValue *value = READ(&reader);
 
-    if (value->valueType != MAL_ERROR)
+    if (!is_error(value))
     {
         MalValue *result = EVAL(value, environment);
 
@@ -750,6 +745,27 @@ void rep(const char *input, MalEnvironment *environment, bool print_result)
     {
         PRINT(value);
     }
+}
+
+HashMap *init_special_s_expression_handlers()
+{
+    HashMap *handlers = new_hashmap();
+
+    // special s expressions that continue evaluation
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_LET_STAR, new_sepecial_s_exression_handler(let_star, NULL, false));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_DO, new_sepecial_s_exression_handler(do_, NULL, false));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_IF, new_sepecial_s_exression_handler(if_, NULL, false));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_TRY_STAR, new_sepecial_s_exression_handler(eval_try_star, NULL, false));
+
+    // special s expressions that return their value directly from EVAL
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_DEF_BANG, new_sepecial_s_exression_handler(NULL, def_exclamation_mark, true));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_FN_STAR, new_sepecial_s_exression_handler(NULL, fn_star, true));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_QUOTE, new_sepecial_s_exression_handler(NULL, quote, true));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_QUASI_QUOTE_EXPAND, new_sepecial_s_exression_handler(NULL, quasiquote, true));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_DEFMACRO, new_sepecial_s_exression_handler(NULL, defmacro, true));
+    hashmap_put(handlers, MAL_SYMBOL, SYMBOL_MACRO_EXPAND, new_sepecial_s_exression_handler(NULL, eval_macroexpand, true));
+
+    return handlers;
 }
 
 char *get_history_filename()
@@ -765,16 +781,17 @@ int main(int argc, char **argv)
 {
     const char *fmt = "(load-file \"%s\")\n";
     output_stream = stdout;
+    _special_s_expression_handlers = init_special_s_expression_handlers();
     global_environment = make_initial_environment();
 
     MalValue *args = make_list(NULL);
     set_in_environment(global_environment, make_symbol("*ARGV*"), args);
     set_in_environment(global_environment, make_symbol("*host-language*"), make_string("c.3", false));
 
-    rep("(def! not (fn* (a) (if a false true)))", global_environment, false);    
-    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", global_environment, false);
-    rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", global_environment, false);
-    rep("(println (str \"Mal [\" *host-language* \"]\"))", global_environment, false);
+    rep("(def! not (fn* (a) (if a false true)))", global_environment, true);
+    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", global_environment, true);
+    rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", global_environment, true);
+    rep("(println (str \"Mal [\" *host-language* \"]\"))", global_environment, true);
 
     if (argc > 1)
     {
