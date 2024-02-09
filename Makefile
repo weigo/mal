@@ -88,6 +88,7 @@ step7 = step7_quote
 step8 = step8_macros
 step9 = step9_try
 stepA = stepA_mal
+stepPackagesystem = stepPackagesystem
 
 argv_STEP = step6_file
 

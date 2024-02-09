@@ -1,0 +1,22 @@
+;;;
+;;; Tests wrt. to implementations of the mal package system
+;;;
+
+;; Test *package* variable: Initially we should start in the context of the mal-user package which should use the system package and thus be able to lookup the *package* symbol
+*package*
+;=>#<package "mal-user">
+
+(find-package)
+;=>Uncaught error: "find-package: expected exactly one argument"
+
+(find-package 1 2)
+;=>Uncaught error: "find-package: expected exactly one argument"
+
+(find-package 1)
+;=>Uncaught error: "find-package: expected string or symbol"
+;; Test find-package arguments
+(find-package "system")
+;=>#<package "system">
+
+(find-package "sys")
+;=>nil

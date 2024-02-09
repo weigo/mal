@@ -1,6 +1,7 @@
 #ifndef _MAL_TYPES_H
 #define _MAL_TYPES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "error.h"
 
@@ -16,6 +17,7 @@ enum MalValueType
     MAL_KEYWORD,
     MAL_LIST,
     MAL_NUMBER,
+    MAL_PACKAGE,
     MAL_STRING,
     MAL_SYMBOL,
     MAL_VECTOR,
@@ -53,7 +55,8 @@ typedef struct HashMapIterator
 HashMap *new_hashmap();
 void free_hashmap(HashMap *);
 const char *hashmap_put(HashMap *hashMap, enum MalValueType keyType, const char *key, void *value);
-void *hashmap_get(HashMap *hashMap, const char *key);
+void hashmap_putall(HashMap *source, HashMap *target);
+void *hashmap_get(const HashMap *hashMap, const char *key);
 
 // Return new hash table iterator (for use with ht_next).
 HashMapIterator hashmap_iterator(HashMap *table);
@@ -88,6 +91,22 @@ typedef struct MalClosure
     bool is_macro;
 } MalClosure;
 
+/**
+ * A MalPackage is {code}name{code}d structure that holds
+ * <ul>
+ * <li>an {@link}MalEnvironment{@link}
+ * <li>a list of used packages (as a {@link}HashMap{link} of symbols) and
+ * <li>a list of exported symbols (also as a {@link}HashMap{link} of symbols)
+ * </ul>
+ */
+typedef struct MalPackage
+{
+    MalValue *name;
+    MalEnvironment *environment;
+    HashMap *used_packages;
+    HashMap *exported_symbols;
+} MalPackage;
+
 typedef struct MalValue
 {
     enum MalValueType valueType;
@@ -101,6 +120,7 @@ typedef struct MalValue
         HashMap *hashMap;
         MalValue *(*function)(MalCell *);
         MalClosure *closure;
+        MalPackage *package;
     };
 } MalValue;
 
@@ -131,7 +151,7 @@ bool is_string(MalValue *value);
 bool is_symbol(MalValue *value);
 bool is_true(MalValue *value);
 bool is_vector(MalValue *value);
-
+bool is_package(MalValue *value);
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));
@@ -140,6 +160,16 @@ MalValue *wrap_error(MalValue *value);
 MalValue *make_symbol(const char *symbol_name);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
+
+/**
+ * Create a new MalPackage using {code}name{code}d structure that holds
+ * <ul>
+ * <li>an {@link}MalEnvironment{@link}
+ * <li>a list of used packages (as a {@link}HashMap{link} of symbols) and
+ * <li>a list of exported symbols (also as a {@link}HashMap{link} of symbols)
+ * </ul>
+ */
+MalValue *make_package(MalValue *name, MalEnvironment *environment, MalCell *used_packages);
 MalValue *mal_clone(MalValue *value);
 
 /**

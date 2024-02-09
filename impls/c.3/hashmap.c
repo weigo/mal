@@ -173,11 +173,6 @@ const char *hashmap_put(HashMap *map, enum MalValueType keyType, const char *key
            keyType == MAL_ATOM || keyType == MAL_TYPE_FALSE || keyType == MAL_TYPE_NIL ||
            keyType == MAL_TYPE_TRUE);
 
-    if (value == NULL)
-    {
-        return NULL;
-    }
-
     // If length will exceed half of current capacity, expand it.
     if (map->length >= map->capacity / 2)
     {
@@ -192,7 +187,7 @@ const char *hashmap_put(HashMap *map, enum MalValueType keyType, const char *key
                              &map->length);
 }
 
-void *hashmap_get(HashMap *map, const char *key)
+void *hashmap_get(const HashMap *map, const char *key)
 {
     // AND hash with capacity-1 to ensure it's within entries array.
     uint64_t hash = hash_key(key);
@@ -251,4 +246,13 @@ bool hashmap_next(HashMapIterator *it)
     }
 
     return false;
+}
+
+void hashmap_putall(HashMap *source, HashMap *target)
+{
+    HashMapIterator it = hashmap_iterator(source);
+
+    while (hashmap_next(&it)) {
+        hashmap_put(target, it.keyType, it.key, it.value);
+    }
 }

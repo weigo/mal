@@ -33,6 +33,7 @@
         "hashmap.h": "c",
         "gc.h": "c",
         "ctype.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "package.h": "c"
     }
 }

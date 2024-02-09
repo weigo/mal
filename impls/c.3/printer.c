@@ -136,6 +136,12 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
         pr_str_internal(buffer, value->malValue, readably);
         break;
 
+    case MAL_PACKAGE:
+        mal_strcat(buffer, "#<package \"");
+        pr_str_internal(buffer, value->package->name, readably);
+        mal_strcat(buffer, "\">");
+        break;
+
     default:
         mal_strcat(buffer, value->value);
         break;

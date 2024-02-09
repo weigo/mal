@@ -30,6 +30,7 @@ S7_SRC = step7_quote.c $(SRC) $(LIBS_SRC)
 S8_SRC = step8_macros.c $(SRC) $(LIBS_SRC)
 S9_SRC = step9_try.c $(SRC) $(LIBS_SRC)
 SA_SRC = stepA_mal.c $(SRC) $(LIBS_SRC)
+SPACKAGE_SYSTEM_SRC = stepPackagesystem.c package.c $(SRC) $(LIBS_SRC)
 
 S0_HEADERS =
 S1_HEADERS = reader.h types.h printer.h token.h gc.h $(LIB_LIST_H)
@@ -42,6 +43,7 @@ S7_HEADERS = $(HEADERS) $(LIBS_H)
 S8_HEADERS = $(HEADERS) $(LIBS_H)
 S9_HEADERS = $(HEADERS) $(LIBS_H)
 SA_HEADERS = $(HEADERS) $(LIBS_H)
+SPACKAGE_SYSTEM_HEADERS = package.h $(HEADERS) $(LIBS_H)
 
 S0 = step0_repl
 S1 = step1_read_print
@@ -54,8 +56,9 @@ S7 = step7_quote
 S8 = step8_macros
 S9 = step9_try
 SA = stepA_mal
+SPackagesystem = stepPackagesystem
 
-all: $(S0) $(S1) $(S2) $(S3) $(S4) $(S5) $(S6) $(S7) $(S8) $(S9) $(SA)
+all: $(S0) $(S1) $(S2) $(S3) $(S4) $(S5) $(S6) $(S7) $(S8) $(S9) $(SA) $(SPackagesystem)
 
 $(S0): $(S0_SRC) $(S0_HEADERS)
 	$(CC) $(CFLAGS) $(DFLAGS) $(S0_SRC) $(LIBS) -o $(S0)
@@ -90,5 +93,8 @@ $(S9): $(S9_SRC) $(S9_HEADERS)
 $(SA): $(SA_SRC) $(SA_HEADERS)
 	$(CC) $(CFLAGS) $(DFLAGS) $(SA_SRC) $(LIBS) $(FFI_LIBS) -DWITH_FFI -o $(SA)
 
+$(SPackagesystem): $(SPACKAGE_SYSTEM_SRC) $(SPACKAGE_SYSTEM_HEADERS)
+	$(CC) $(CFLAGS) $(DFLAGS) $(SPACKAGE_SYSTEM_SRC) $(LIBS) $(FFI_LIBS) -DWITH_FFI -o $(SPackagesystem)
+
 .PHONY clean:
-	rm -f $(S0) $(S1) $(S2) $(S3) $(S4) $(S5) $(S6) $(S7) $(S8) $(S9) $(SA)
+	rm -f $(S0) $(S1) $(S2) $(S3) $(S4) $(S5) $(S6) $(S7) $(S8) $(S9) $(SA) $(SPackagesystem)

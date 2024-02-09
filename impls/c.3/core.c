@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include "core.h"
 #include "env.h"
@@ -17,7 +18,7 @@ bool is_equal_by_type(MalValue *left, MalValue *right);
 bool is_equal(MalValue *left, MalValue *right);
 bool are_lists_equal(MalCell *left, MalCell *right);
 
-MalEnvironment *global_environment;
+extern MalEnvironment *global_environment;
 
 MalValue *add(MalCell *values)
 {
@@ -1421,6 +1422,101 @@ MalValue *_conj(MalCell *values)
     assert(false);
 }
 
+extern MalValue *find_package(MalValue *symbol);
+
+MalValue *mal_find_package(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("find-package: expected exactly one argument");
+    }
+
+    MalValue *package_name = values->value;
+
+    if (!is_symbol(package_name) && !is_string(package_name))
+    {
+        return make_error("find-package: expected string or symbol");
+    }
+
+    MalValue *result = find_package(package_name);
+
+    return result ? result : &MAL_NIL;
+}
+
+MalValue *package_p(MalCell *values)
+{
+    if (!values || values->cdr)
+    {
+        return make_error("'package?': expected exactly one argument");
+    }
+
+    return is_package(values->value) ? &MAL_TRUE : &MAL_FALSE;
+}
+
+/**
+ *  FIXME: defpackage sollte als Macro definiert werden, so daß Feinheiten wie
+ * export, import-from etc. als separate funktionen bereitgestellt werden können.
+ */
+MalValue *mal_make_package(MalCell *args)
+{
+    if (!args || !args->value)
+    {
+        return make_error("defpackage: expected at least a package name");
+    }
+
+    MalValue *package_name = args->value;
+
+    if (!is_symbol(package_name) || is_string(package_name))
+    {
+        return make_error("defpackage: package name must be a symbol or string");
+    }
+
+    MalValue *package = find_package(package_name);
+
+    if (!package)
+    {
+        return make_error("defpackage: package '%s' already exists!", package_name->value);
+    }
+
+    MalCell *used_packages = NULL;
+    HashMap *exported_symbols = NULL;
+    MalCell *current_arg = args->cdr;
+
+    while (current_arg)
+    {
+        if (!is_sequence(current_arg->value) || empty_p(current_arg->value->list) == &MAL_TRUE)
+        {
+            return make_error("defpackage: expected a sequence argument, but got '%s'", pr_str(current_arg->value, true));
+        }
+
+        MalValue *keyword = current_arg->value->list->value;
+
+        if (!is_keyword(keyword))
+        {
+            return make_error("defpackage: expected a keyword as first list element, but got '%s'", pr_str(current_arg->value, true));
+        }
+
+        if (strcmp(":use", keyword->value) == 0)
+        {
+            used_packages = current_arg->value->list->cdr;
+        }
+        else if (strcmp(":import-from", keyword->value) == 0)
+        {
+        }
+        else if (strcmp(":export", keyword->value) == 0)
+        {
+            if (!exported_symbols)
+            {
+                exported_symbols = new_hashmap();
+            }
+        }
+
+        current_arg = current_arg->cdr;
+    }
+
+    package = make_package(package_name, global_environment, used_packages);
+}
+
 HashMap *core_namespace()
 {
     HashMap *ns = new_hashmap();
@@ -1497,24 +1593,8 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "with-meta", new_function(with_meta));
     hashmap_put(ns, MAL_SYMBOL, "conj", new_function(_conj));
 
+    hashmap_put(ns, MAL_SYMBOL, "find-package", new_function(mal_find_package));
+    hashmap_put(ns, MAL_SYMBOL, "package?", new_function(package_p));
+
     return ns;
-}
-
-MalEnvironment *make_initial_environment()
-{
-    MalEnvironment *environment = make_environment(NULL, NULL, NULL, NULL);
-    HashMap *ns = core_namespace();
-
-    HashMapIterator it = hashmap_iterator(ns);
-
-    while (hashmap_next(&it))
-    {
-        set_in_environment(environment, make_symbol(it.key), it.value);
-    }
-
-    set_in_environment(environment, &MAL_NIL, &MAL_NIL);
-    set_in_environment(environment, &MAL_TRUE, &MAL_TRUE);
-    set_in_environment(environment, &MAL_FALSE, &MAL_FALSE);
-
-    return environment;
 }

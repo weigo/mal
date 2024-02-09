@@ -119,12 +119,14 @@ bool is_self_evaluating(MalValue *value)
 
     switch (value->valueType)
     {
-        case MAL_LIST:
-        case MAL_VECTOR:
-        case MAL_HASHMAP:
-        case MAL_SYMBOL:
-    default:
+    case MAL_LIST:
+    case MAL_VECTOR:
+    case MAL_HASHMAP:
+    case MAL_SYMBOL:
         result = false;
+        break;
+    default:
+        break;
     }
 
     return result;
@@ -177,6 +179,11 @@ bool is_string(MalValue *value)
 bool is_hashmap(MalValue *value)
 {
     return value->valueType == MAL_HASHMAP;
+}
+
+bool is_package(MalValue *value)
+{
+    return value->valueType == MAL_PACKAGE;
 }
 
 MalValue *new_value(enum MalValueType valueType)
@@ -234,6 +241,7 @@ MalValue *make_error(char *fmt, ...)
         else
         {
             buf_len *= 2;
+            result = -1;
         }
 
         va_end(arg_ptr);

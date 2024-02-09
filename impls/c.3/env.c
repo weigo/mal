@@ -18,7 +18,7 @@ void free_environment(MalEnvironment *environment)
 
 MalEnvironment *find_environment(MalEnvironment *start, MalValue *symbol)
 {
-    assert(symbol->valueType == MAL_SYMBOL);
+    assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
 
     MalEnvironment *env = start;
     MalValue *value = NULL;
@@ -38,9 +38,12 @@ MalEnvironment *find_environment(MalEnvironment *start, MalValue *symbol)
     return env;
 }
 
-MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *symbol)
+extern MalValue *get_current_package();
+extern MalValue *lookup_in_package(MalValue *package, MalValue *symbol);
+
+MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *package, MalValue *symbol)
 {
-    assert(symbol->valueType == MAL_SYMBOL);
+    assert(is_symbol(symbol));
     MalEnvironment *env = environment;
     MalValue *value = NULL;
 
@@ -50,15 +53,39 @@ MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *symbol)
         env = env->parent;
     }
 
+    if (!value && package)
+    {
+        assert(is_package(package));
+        value = lookup_in_package(package, symbol);
+    }
+
     return value;
 }
 
+/**
+ * Looks up the given symbol in the specified environment or one of the parent environments.
+ * The value is then updated in the environment it could be found in. If the symbol did not
+ * exist in one of these environments it is put into the one specified in the arguments.
+ *
+ * @param environment the top level environment the symbol shall be put into
+ * @param symbol the symbol that should be looked up in the given environment or one of its parent environments
+ * @param value the value that shall be put/update into/in the given environment or one of its parent environments
+ *
+ * @return {code}false{code} if the symbol did not already exist in the given environment or one of its parent environments, {code}true{code} otherwise.
+ */
 bool set_in_environment(MalEnvironment *environment, MalValue *symbol, MalValue *value)
 {
     assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
-    MalValue *oldValue = hashmap_get(environment->map, symbol->value);
+    MalEnvironment *env = find_environment(environment, symbol);
 
-    hashmap_put(environment->map, symbol->valueType, symbol->value, value);
+    if (!env)
+    {
+        env = environment;
+    }
+
+    MalValue *oldValue = hashmap_get(env->map, symbol->value);
+
+    hashmap_put(env->map, symbol->valueType, symbol->value, value);
 
     return oldValue != NULL;
 }
