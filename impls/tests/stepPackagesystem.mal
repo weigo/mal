@@ -20,3 +20,7 @@
 
 (find-package "sys")
 ;=>nil
+
+(in-package 'system)
+*package*
+;=>#<package "system">

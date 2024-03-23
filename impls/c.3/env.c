@@ -16,16 +16,15 @@ void free_environment(MalEnvironment *environment)
     free(environment);
 }
 
-MalEnvironment *find_environment(MalEnvironment *start, MalValue *symbol)
+MalEnvironment *find_environment(MalEnvironment *start, const MalValue *symbol)
 {
-    assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
-
     MalEnvironment *env = start;
     MalValue *value = NULL;
+    char *symbol_name = get_symbol_name(symbol);
 
     while (env != NULL && value == NULL)
     {
-        value = hashmap_get(env->map, symbol->value);
+        value = hashmap_get(env->map, symbol_name);
 
         if (value)
         {
@@ -39,17 +38,17 @@ MalEnvironment *find_environment(MalEnvironment *start, MalValue *symbol)
 }
 
 extern MalValue *get_current_package();
-extern MalValue *lookup_in_package(MalValue *package, MalValue *symbol);
+extern MalValue *lookup_in_package(MalValue *package, const MalValue *symbol);
 
-MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *package, MalValue *symbol)
+MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *package, const MalValue *symbol)
 {
-    assert(is_symbol(symbol));
     MalEnvironment *env = environment;
     MalValue *value = NULL;
+    char *symbol_name = get_symbol_name(symbol);
 
     while (env != NULL && value == NULL)
     {
-        value = hashmap_get(env->map, symbol->value);
+        value = hashmap_get(env->map, symbol_name);
         env = env->parent;
     }
 
@@ -73,9 +72,8 @@ MalValue *lookup_in_environment(MalEnvironment *environment, MalValue *package, 
  *
  * @return {code}false{code} if the symbol did not already exist in the given environment or one of its parent environments, {code}true{code} otherwise.
  */
-bool set_in_environment(MalEnvironment *environment, MalValue *symbol, MalValue *value)
+bool set_in_environment(MalEnvironment *environment, const MalValue *symbol, MalValue *value)
 {
-    assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
     MalEnvironment *env = find_environment(environment, symbol);
 
     if (!env)
@@ -83,9 +81,10 @@ bool set_in_environment(MalEnvironment *environment, MalValue *symbol, MalValue 
         env = environment;
     }
 
-    MalValue *oldValue = hashmap_get(env->map, symbol->value);
+    char *symbol_name = get_symbol_name(symbol);
+    MalValue *oldValue = hashmap_get(env->map, symbol_name);
 
-    hashmap_put(env->map, symbol->valueType, symbol->value, value);
+    hashmap_put(env->map, symbol->valueType, symbol_name, value);
 
     return oldValue != NULL;
 }

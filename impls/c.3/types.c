@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -20,21 +21,28 @@ MalValue MAL_TRUE = {
     .valueType = MAL_TYPE_TRUE,
     .value = "true"};
 
+
+static const MalSymbol EOF_SYMBOL = {
+    .name = "EOF",
+    .package = &MAL_NIL
+};
+
 MalValue MAL_EOF = {
     .valueType = MAL_SYMBOL,
-    .value = "EOF"};
+    .symbol = &EOF_SYMBOL
+};
 
-bool is_nil(MalValue *value)
+bool is_nil(const MalValue *value)
 {
     return value == &MAL_NIL;
 }
 
-bool is_true(MalValue *value)
+bool is_true(const MalValue *value)
 {
     return value == &MAL_TRUE;
 }
 
-bool is_false(MalValue *value)
+bool is_false(const MalValue *value)
 {
     return value == &MAL_FALSE;
 }
@@ -59,7 +67,7 @@ bool is_sequence(MalValue *value)
     return value->valueType == MAL_LIST || value->valueType == MAL_VECTOR;
 }
 
-bool is_symbol(MalValue *value)
+bool is_symbol(const MalValue *value)
 {
     return value && value->valueType == MAL_SYMBOL;
 }
@@ -71,7 +79,7 @@ bool is_keyword(MalValue *value)
 
 bool is_named_symbol(MalValue *value, const char *symbol_name)
 {
-    return is_symbol(value) && strcmp(value->value, symbol_name) == 0;
+    return is_symbol(value) && strcmp(get_symbol_name(value), symbol_name) == 0;
 }
 
 bool is_error(MalValue *value)
@@ -213,11 +221,29 @@ MalValue *make_value(enum MalValueType valueType, const char *value)
 
 MalValue *make_symbol(const char *symbol_name)
 {
-    // FIXME: lookup symbol_name in a symbol hash table and return the value already there
-    MalValue *mal_value = new_value(MAL_SYMBOL);
-    mal_value->value = symbol_name;
+    MalValue *value = new_value(MAL_SYMBOL);
+    value->symbol = mal_calloc(1, sizeof(MalSymbol));
+    uint64_t len = strlen(symbol_name) + 1;
+    char *name = mal_malloc(len);
 
-    return mal_value;
+    for (uint64_t i = 0; i < len; i++)
+    {
+        name[i] = tolower(symbol_name[i]);
+    }
+
+    name[len] = '\0';
+    value->symbol->name = name;
+    value->symbol->package = &MAL_NIL;
+
+    return value;
+}
+
+char *get_symbol_name(const MalValue *symbol)
+{
+    // FIXME: should use symbolp(MalValue*)
+    assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
+
+    return is_symbol(symbol) ? symbol->symbol->name : symbol->value;
 }
 
 MalValue *make_error(char *fmt, ...)

@@ -103,10 +103,20 @@ typedef struct MalPackage
 {
     MalValue *name;
     MalEnvironment *environment;
+    HashMap *internal_symbols;
+    HashMap *inherited_symbols;
     HashMap *used_packages;
     HashMap *exported_symbols;
 } MalPackage;
 
+/**
+ * A MalSymbol represents a symbol
+ */
+typedef struct MalSymbol
+{
+    const char *name;
+    MalValue *package;
+} MalSymbol;
 typedef struct MalValue
 {
     enum MalValueType valueType;
@@ -121,6 +131,7 @@ typedef struct MalValue
         MalValue *(*function)(MalCell *);
         MalClosure *closure;
         MalPackage *package;
+        MalSymbol *symbol;
     };
 } MalValue;
 
@@ -133,7 +144,7 @@ bool is_atom(MalValue *value);
 bool is_closure(MalValue *value);
 bool is_error(MalValue *value);
 bool is_executable(MalValue *value);
-bool is_false(MalValue *value);
+bool is_false(const MalValue *value);
 bool is_fixnum(MalValue *value);
 bool is_function(MalValue *value);
 bool is_hashmap(MalValue *value);
@@ -141,15 +152,15 @@ bool is_keyword(MalValue *value);
 bool is_list(MalValue *value);
 bool is_macro(MalValue *value);
 bool is_named_symbol(MalValue *value, const char *symbol_name);
-bool is_nil(MalValue *value);
+bool is_nil(const MalValue *value);
 bool is_number_type(MalValue *value);
 bool is_number(MalValue *value);
 bool is_self_evaluating(MalValue *value);
 bool is_sequence(MalValue *value);
 bool is_string_type(MalValue *value);
 bool is_string(MalValue *value);
-bool is_symbol(MalValue *value);
-bool is_true(MalValue *value);
+bool is_symbol(const MalValue *value);
+bool is_true(const MalValue *value);
 bool is_vector(MalValue *value);
 bool is_package(MalValue *value);
 
@@ -158,6 +169,7 @@ MalValue *new_function(MalValue *(*function)(MalCell *args));
 MalValue *make_error(char *fmt, ...);
 MalValue *wrap_error(MalValue *value);
 MalValue *make_symbol(const char *symbol_name);
+char *get_symbol_name(const MalValue *symbol);
 MalValue *make_value(enum MalValueType valueType, const char *value);
 MalValue *make_closure(MalEnvironment *outer, MalCell *context);
 

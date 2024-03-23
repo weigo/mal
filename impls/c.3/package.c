@@ -9,21 +9,51 @@
 
 static HashMap *packages;
 MalEnvironment *global_environment;
-static const char *PACKAGE_VARIABLE = "*package*";
+static const MalSymbol PACKAGE_SYMBOL = {
+    .name = "*package*",
+    .package = &MAL_NIL};
+
+static const MalValue PACKAGE_VARIABLE = {
+    .valueType = MAL_SYMBOL,
+    .symbol = &PACKAGE_SYMBOL};
 
 MalValue *find_package(MalValue *symbol)
 {
-    return hashmap_get(packages, symbol->value);
+    if (is_string(symbol))
+    {
+        return hashmap_get(packages, symbol->value);
+    }
+
+    return hashmap_get(packages, get_symbol_name(symbol));
 }
 
 MalValue *get_current_package()
 {
-    return lookup_in_environment(global_environment, NULL, make_symbol(PACKAGE_VARIABLE));
+    return lookup_in_environment(global_environment, NULL, &PACKAGE_VARIABLE);
 }
 
 void set_current_package(MalValue *package)
 {
-    set_in_environment(global_environment, make_symbol(PACKAGE_VARIABLE), package);
+    set_in_environment(global_environment, &PACKAGE_VARIABLE, package);
+}
+
+MalValue *use_package(MalValue *package, MalValue *package_to_use)
+{
+    MalValue *p = find_package(package_to_use);
+
+    if (!p)
+    {
+        return make_error("package '%s' not found!", get_symbol_name(package_to_use));
+    }
+
+    /*
+     * use-package checks for name conflicts between the newly imported symbols and those already
+     * accessible in package. A name conflict in use-package between two external symbols inherited
+     * by package from packages-to-use may be resolved in favor of either symbol by importing one of
+     * them into package and making it a shadowing symbol.
+     */
+    hashmap_putall(p->package->exported_symbols, package->package->inherited_symbols);
+    hashmap_put(package->package->used_packages, p->valueType, p->package->name, p->package->name);
 }
 
 MalValue *make_package(MalValue *name, MalEnvironment *environment, MalCell *used_packages)
@@ -36,25 +66,22 @@ MalValue *make_package(MalValue *name, MalEnvironment *environment, MalCell *use
 
     package->name = name;
     package->environment = environment;
+    package->internal_symbols = new_hashmap();
+    package->inherited_symbols = new_hashmap();
     package->exported_symbols = new_hashmap();
     package->used_packages = new_hashmap();
 
     MalCell *used_package = used_packages;
+    MalValue *tmp;
 
     while (used_package)
     {
-        HashMap *package2symbols = new_hashmap();
+        tmp = use_package(package, used_package->value);
 
-        // FIXME: Verify: should be a symbol (or maybe a string) or else return an error
-        MalValue *p = find_package(used_package->value);
-
-        if (!p)
+        if (is_error(tmp))
         {
-            return make_error("package '%s' not found!", used_package->value->value);
+            return tmp;
         }
-
-        hashmap_putall(p->package->exported_symbols, package2symbols);
-        hashmap_put(package->used_packages, used_package->value->valueType, used_package->value->value, used_package->value);
 
         used_package = used_package->cdr;
     }
@@ -74,11 +101,52 @@ MalValue *make_package(MalValue *name, MalEnvironment *environment, MalCell *use
 MalValue *new_package(char *package_name, MalEnvironment *parent_environment, MalCell *used_packages)
 {
     MalValue *symbol = make_symbol(package_name);
+    MalValue *package = find_package(symbol);
+
+    if (package)
+    {
+        return make_error("A package with name '%s' already exists!", package_name);
+    }
+
     MalEnvironment *environment = make_environment(parent_environment, NULL, NULL, NULL);
-    MalValue *package = make_package(symbol, environment, used_packages);
-    hashmap_put(packages, symbol->valueType, symbol->value, package);
+    package = make_package(symbol, environment, used_packages);
+    hashmap_put(packages, symbol->valueType, symbol->symbol->name, package);
 
     return package;
+}
+
+void intern_symbol(MalValue *package, MalValue *symbol) {
+    assert(is_package(package));
+    assert(is_string(symbol));
+    char *symbol_name = symbol->value;
+
+
+    if () {
+
+    }
+
+    hashmap_put(package->package->internal_symbols, symbol->valueType, symbol_name, (void *)symbol_name);
+}
+
+void export_symbol(MalValue *package, MalValue *symbol)
+{
+    assert(is_package(package));
+    assert(is_symbol(symbol));
+    char *symbol_name = get_symbol_name(symbol);
+    hashmap_put(package->package->exported_symbols, symbol->valueType, symbol_name, (void *)symbol_name);
+}
+
+MalValue *symbol_package(MalValue *symbol)
+{
+    return symbol->symbol->package;
+}
+
+MalValue *intern_symbol(MalValue *package, MalValue *symbol)
+{
+    assert(is_package(package));
+    assert(is_symbol(symbol));
+
+    symbol->symbol->package = package;
 }
 
 MalValue *make_system_package(void (*rep)(const char *input, MalEnvironment *environment, bool print_result))
@@ -88,17 +156,21 @@ MalValue *make_system_package(void (*rep)(const char *input, MalEnvironment *env
     HashMap *ns = core_namespace();
     HashMapIterator it = hashmap_iterator(ns);
     MalEnvironment *environment = package_system->package->environment;
+    MalValue *symbol;
 
     while (hashmap_next(&it))
     {
-        set_in_environment(environment, make_symbol(it.key), it.value);
+        symbol = make_symbol(it.key);
+        symbol->symbol->package = package_system;
+        set_in_environment(environment, symbol, it.value);
+        export_symbol(package_system, symbol);
     }
 
     set_current_package(package_system);
 
     // FIXME: Make path to 'system.lisp' configurable, e.g. via environment
     char *system_lisp = read_file("system.lisp");
-    rep(system_lisp, environment, false);
+    rep(system_lisp, environment, true);
 
     // export symbol names from environment
     it = hashmap_iterator(environment->map);
@@ -121,6 +193,7 @@ void init_packages(void (*rep)(const char *input, MalEnvironment *environment, b
     set_in_environment(global_environment, &MAL_NIL, &MAL_NIL);
     set_in_environment(global_environment, &MAL_TRUE, &MAL_TRUE);
     set_in_environment(global_environment, &MAL_FALSE, &MAL_FALSE);
+    set_in_environment(global_environment, &PACKAGE_VARIABLE, NULL);
 
     packages = new_hashmap();
 
@@ -128,7 +201,7 @@ void init_packages(void (*rep)(const char *input, MalEnvironment *environment, b
     MalValue *used_packages = make_list(NULL);
     push(used_packages, system_package->package->name);
 
-    set_current_package(new_package("mal-user", global_environment, used_packages->list));
+    set_current_package(new_package("mal-user", make_environment(global_environment, NULL, NULL, NULL), used_packages->list));
 }
 
 MalValue *lookup_in_package(MalValue *package, MalValue *symbol)
@@ -143,21 +216,7 @@ MalValue *lookup_in_package(MalValue *package, MalValue *symbol)
 
     if (!result)
     {
-        HashMapIterator used_packages = hashmap_iterator(p->used_packages);
-        MalValue *current = NULL;
-
-        while (!result && hashmap_next(&used_packages))
-        {
-            package_name = (MalValue *)used_packages.value;
-            current = find_package(package_name);
-
-            if (!current)
-            {
-                return make_error("cannot find used package '%s'", package_name->value);
-            }
-
-            result = lookup_in_environment(current->package->environment, current, symbol);
-        }
+        result = hashmap_get(p->inherited_symbols, get_symbol_name(symbol));
     }
 
     return result;

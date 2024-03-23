@@ -3,6 +3,7 @@
 #include <string.h>
 #include "core.h"
 #include "env.h"
+#include "package.h"
 #include "printer.h"
 #include "reader.h"
 #include "symbol.h"
@@ -1514,7 +1515,75 @@ MalValue *mal_make_package(MalCell *args)
         current_arg = current_arg->cdr;
     }
 
-    package = make_package(package_name, global_environment, used_packages);
+    return make_package(package_name, global_environment, used_packages);
+}
+
+MalValue *mal_defvar(MalCell *args)
+{
+    if (!args || _count(args) > 3)
+    {
+        return make_error("defvar: name [initial value [documentation]]");
+    }
+
+    if (!is_symbol(args->value))
+    {
+        return make_error("defvar: name is not a symbol");
+    }
+
+    if (lookup_in_environment(global_environment, NULL, args->value) == NULL)
+    {
+        MalValue *initial = args->cdr ? args->cdr->value : NULL;
+        set_in_environment(global_environment, args->value, initial);
+    }
+
+    return args->value;
+}
+
+MalValue *mal_symbol_package(MalCell *args)
+{
+    if (!args || !is_symbol(args->value) || args->cdr)
+    {
+        return make_error("'symbol-package': expected a symbol as argument");
+    }
+
+    return symbol_package(args->value);
+}
+
+MalValue *mal_export_symbol(MalCell *args)
+{
+    if (!args)
+    {
+        return make_error("'export': expected at least one symbol (and optionally a package)");
+    }
+
+    MalCell *current = args;
+    MalValue *package = NULL;
+
+    while (current && is_symbol(current->value))
+    {
+        current = current->cdr;
+    }
+
+    if (!current)
+    {
+        package = get_current_package();
+    }
+    else if (is_package(current->value))
+    {
+        package = current->value;
+    }
+    else
+    {
+        return make_error("'export': superfluous arguments '%s'", print_values(current)->value);
+    }
+
+    current = args;
+
+    while (current && is_symbol(current->value))
+    {
+        export_symbol(package, current->value);
+        current = current->cdr;
+    }
 }
 
 HashMap *core_namespace()
@@ -1572,6 +1641,7 @@ HashMap *core_namespace()
 
     hashmap_put(ns, MAL_SYMBOL, "symbol?", new_function(symbol_p));
     hashmap_put(ns, MAL_SYMBOL, "symbol", new_function(symbol));
+    hashmap_put(ns, MAL_SYMBOL, "make-symbol", new_function(symbol));
     hashmap_put(ns, MAL_SYMBOL, "keyword?", new_function(keyword_p));
     hashmap_put(ns, MAL_SYMBOL, "keyword", new_function(keyword));
 
@@ -1593,8 +1663,12 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "with-meta", new_function(with_meta));
     hashmap_put(ns, MAL_SYMBOL, "conj", new_function(_conj));
 
+    hashmap_put(ns, MAL_SYMBOL, "defvar", mal_defvar);
+
     hashmap_put(ns, MAL_SYMBOL, "find-package", new_function(mal_find_package));
     hashmap_put(ns, MAL_SYMBOL, "package?", new_function(package_p));
+    hashmap_put(ns, MAL_SYMBOL, "symbol-package", mal_symbol_package);
+    hashmap_put(ns, MAL_SYMBOL, "export", mal_export_symbol);
 
     return ns;
 }

@@ -142,6 +142,10 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
         mal_strcat(buffer, "\">");
         break;
 
+    case MAL_SYMBOL:
+        mal_strcat(buffer, value->symbol->name);
+        break;
+
     default:
         mal_strcat(buffer, value->value);
         break;

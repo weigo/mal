@@ -10,6 +10,7 @@
 #include "token.h"
 #include "types.h"
 #include "gc.h"
+#include "package.h"
 
 MalValue *read_form(Reader *reader, bool readNextToken);
 

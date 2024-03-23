@@ -136,7 +136,7 @@ MalValue *eval_ast(MalValue *value, MalEnvironment *environment)
         }
         else
         {
-            result = make_error("'%s' not found", value->value);
+            result = make_error("'%s' not found", get_symbol_name(value));
         }
     }
     break;
@@ -649,7 +649,7 @@ MalValue *EVAL(MalValue *value, MalEnvironment *external_environment)
         // handle special S expressions
         if (is_symbol(head->value))
         {
-            SpecialSexpressionHandlerSpec *spec = hashmap_get(_special_s_expression_handlers, head->value->value);
+            SpecialSexpressionHandlerSpec *spec = hashmap_get(_special_s_expression_handlers, get_symbol_name(head->value));
 
             if (spec)
             {
@@ -805,7 +805,7 @@ int main(int argc, char **argv)
         char buffer[len];
         int written = snprintf(buffer, len, fmt, argv[1]);
         assert(written <= len);
-        //        buffer[written + 1] = '\0';
+
         rep(buffer, package->package->environment, false);
 
         return 0;
@@ -821,8 +821,9 @@ int main(int argc, char **argv)
     while (1)
     {
         package = get_current_package();
-        prompt = mal_calloc(strlen(package->package->name->value) + 3, sizeof(char));
-        sprintf(prompt, "%s> ", package->package->name->value);
+        char* package_name = get_symbol_name(package->package->name);
+        prompt = mal_calloc(strlen(package_name) + 3, sizeof(char));
+        sprintf(prompt, "%s> ", package_name);
 
         input = _readline(prompt);
 
