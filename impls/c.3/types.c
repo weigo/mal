@@ -21,16 +21,13 @@ MalValue MAL_TRUE = {
     .valueType = MAL_TYPE_TRUE,
     .value = "true"};
 
-
 static const MalSymbol EOF_SYMBOL = {
     .name = "EOF",
-    .package = &MAL_NIL
-};
+    .package = &MAL_NIL};
 
 MalValue MAL_EOF = {
     .valueType = MAL_SYMBOL,
-    .symbol = &EOF_SYMBOL
-};
+    .symbol = &EOF_SYMBOL};
 
 bool is_nil(const MalValue *value)
 {
@@ -72,7 +69,7 @@ bool is_symbol(const MalValue *value)
     return value && value->valueType == MAL_SYMBOL;
 }
 
-bool is_keyword(MalValue *value)
+bool is_keyword(const MalValue *value)
 {
     return value && value->valueType == MAL_KEYWORD;
 }
@@ -179,7 +176,7 @@ bool is_string_type(MalValue *value)
     return false;
 }
 
-bool is_string(MalValue *value)
+bool is_string(const MalValue *value)
 {
     return value->valueType == MAL_STRING;
 }
@@ -192,6 +189,11 @@ bool is_hashmap(MalValue *value)
 bool is_package(MalValue *value)
 {
     return value->valueType == MAL_PACKAGE;
+}
+
+bool is_multi_value(MalValue *value)
+{
+    return value->valueType == MAL_MULTI_VALUE;
 }
 
 MalValue *new_value(enum MalValueType valueType)
@@ -241,7 +243,7 @@ MalValue *make_symbol(const char *symbol_name)
 char *get_symbol_name(const MalValue *symbol)
 {
     // FIXME: should use symbolp(MalValue*)
-    assert(is_symbol(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
+    assert(is_symbol(symbol) || is_keyword(symbol) || is_nil(symbol) || is_true(symbol) || is_false(symbol));
 
     return is_symbol(symbol) ? symbol->symbol->name : symbol->value;
 }
@@ -429,7 +431,7 @@ MalValue *make_vector(MalCell *values)
 
 void push(MalValue *list, MalValue *value)
 {
-    assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR);
+    assert(list->valueType == MAL_LIST || list->valueType == MAL_VECTOR || list->valueType == MAL_MULTI_VALUE);
 
     if (list->list == NULL)
     {

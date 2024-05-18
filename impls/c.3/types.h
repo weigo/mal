@@ -24,6 +24,7 @@ enum MalValueType
     MAL_TYPE_FALSE,
     MAL_TYPE_NIL,
     MAL_TYPE_TRUE,
+    MAL_MULTI_VALUE,
 };
 
 typedef struct MapEntry
@@ -148,7 +149,7 @@ bool is_false(const MalValue *value);
 bool is_fixnum(MalValue *value);
 bool is_function(MalValue *value);
 bool is_hashmap(MalValue *value);
-bool is_keyword(MalValue *value);
+bool is_keyword(const MalValue *value);
 bool is_list(MalValue *value);
 bool is_macro(MalValue *value);
 bool is_named_symbol(MalValue *value, const char *symbol_name);
@@ -158,11 +159,12 @@ bool is_number(MalValue *value);
 bool is_self_evaluating(MalValue *value);
 bool is_sequence(MalValue *value);
 bool is_string_type(MalValue *value);
-bool is_string(MalValue *value);
+bool is_string(const MalValue *value);
 bool is_symbol(const MalValue *value);
 bool is_true(const MalValue *value);
 bool is_vector(MalValue *value);
 bool is_package(MalValue *value);
+bool is_multi_value(MalValue *value);
 
 MalValue *new_value(enum MalValueType valueType);
 MalValue *new_function(MalValue *(*function)(MalCell *args));

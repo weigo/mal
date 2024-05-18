@@ -917,6 +917,7 @@ MalValue *keyword_p(MalCell *values)
     return is_keyword(values->value) ? &MAL_TRUE : &MAL_FALSE;
 }
 
+
 MalValue *keyword(MalCell *values)
 {
     if (values->cdr)
@@ -928,13 +929,7 @@ MalValue *keyword(MalCell *values)
 
     if (is_string(value))
     {
-        size_t len = strlen(value->value) + 2;
-        char *keyword = mal_calloc(len, sizeof(char));
-        int written = snprintf(keyword, len, ":%s", value->value);
-
-        assert(written <= len);
-
-        return make_value(MAL_KEYWORD, keyword);
+        make_keyword(value->value);
     }
     else if (is_keyword(value))
     {
@@ -1423,8 +1418,6 @@ MalValue *_conj(MalCell *values)
     assert(false);
 }
 
-extern MalValue *find_package(MalValue *symbol);
-
 MalValue *mal_find_package(MalCell *values)
 {
     if (!values || values->cdr)
@@ -1549,6 +1542,28 @@ MalValue *mal_symbol_package(MalCell *args)
     return symbol_package(args->value);
 }
 
+/**
+ * @brief 
+ * export makes one or more symbols that are accessible in package (whether directly or by inheritance) be external symbols of that package.
+ *
+ * If any of the symbols is already accessible as an external symbol of package, export has no effect on that symbol. If the symbol is present in package as an internal symbol, it is simply changed to external status. If it is accessible as an internal symbol via use-package, it is first imported into package, then exported. (The symbol is then present in the package whether or not package continues to use the package through which the symbol was originally inherited.)
+ *
+ * export makes each symbol accessible to all the packages that use package. All of these packages are checked for name conflicts: (export s p) does (find-symbol (symbol-name s) q) for each package q in (package-used-by-list p). Note that in the usual case of an export during the initial definition of a package, the result of package-used-by-list is nil and the name-conflict checking takes negligible time. When multiple changes are to be made, for example when export is given a list of symbols, it is permissible for the implementation to process each change separately, so that aborting from a name conflict caused by any but the first symbol in the list does not unexport the first symbol in the list. However, aborting from a name-conflict error caused by export of one of symbols does not leave that symbol accessible to some packages and inaccessible to others; with respect to each of symbols processed, export behaves as if it were as an atomic operation.
+ *
+ * A name conflict in export between one of symbols being exported and a symbol already present in a package that would inherit the newly-exported symbol may be resolved in favor of the exported symbol by uninterning the other one, or in favor of the already-present symbol by making it a shadowing symbol.
+ *
+ * Examples:
+ *
+ * (make-package 'temp :use nil) =>  #<PACKAGE "TEMP">
+ * (use-package 'temp) =>  T
+ * (intern "TEMP-SYM" 'temp) =>  TEMP::TEMP-SYM, NIL
+ * (find-symbol "TEMP-SYM") =>  NIL, NIL
+ * (export (find-symbol "TEMP-SYM" 'temp) 'temp) =>  T
+ * (find-symbol "TEMP-SYM") =>  TEMP-SYM, :INHERITED 
+ *
+ * @param args 
+ * @return MalValue* 
+ */
 MalValue *mal_export_symbol(MalCell *args)
 {
     if (!args)
@@ -1584,6 +1599,63 @@ MalValue *mal_export_symbol(MalCell *args)
         export_symbol(package, current->value);
         current = current->cdr;
     }
+
+    return &MAL_TRUE;
+}
+
+/**
+ * @brief
+ *
+ * @param args list of arguments to return in the multiple values object
+ * @return MalValue*
+ */
+MalValue *mal_values(MalCell *args)
+{
+    int64_t arg_count = _count(args);
+
+    if (arg_count == 1)
+    {
+        return args->value;
+    }
+
+    MalValue *values = new_value(MAL_MULTI_VALUE);
+
+    if (arg_count > 1)
+    {
+        bool has_multi_value_args = false;
+        MalCell *current = args;
+
+        while (current)
+        {
+            if (is_multi_value(current->value))
+            {
+                has_multi_value_args = true;
+                break;
+            }
+        }
+
+        if (!has_multi_value_args)
+        {
+            values->list = args;
+        }
+        else
+        {
+            current = args;
+
+            while (current)
+            {
+                if (is_multi_value(current->value))
+                {
+                    push(values, first(current->value->list));
+                }
+                else {
+                    push(values, first(current));
+                }
+            }
+        }
+    }
+
+    return values;
 }
 
 HashMap *core_namespace()
@@ -1669,6 +1741,8 @@ HashMap *core_namespace()
     hashmap_put(ns, MAL_SYMBOL, "package?", new_function(package_p));
     hashmap_put(ns, MAL_SYMBOL, "symbol-package", mal_symbol_package);
     hashmap_put(ns, MAL_SYMBOL, "export", mal_export_symbol);
+
+    hashmap_put(ns, MAL_SYMBOL, "values", mal_values);
 
     return ns;
 }

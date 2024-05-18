@@ -17,7 +17,7 @@ void init_packages(void (*rep)(const char *input, MalEnvironment *environment, b
  *
  * @return {code}MalValue{code} when a package with the given name has been registered, {code}NULL{code} otherwise.
  */
-MalValue *find_package(MalValue *symbol);
+MalValue *find_package(const MalValue *symbol);
 
 /**
  * Look the given symbol up in the provided package.
@@ -50,9 +50,11 @@ MalValue *symbol_package(MalValue *symbol);
 void export_symbol(MalValue *package, MalValue *symbol);
 
 /**
- * intern enters a symbol named string into package. If a symbol whose name is the same as string is already accessible in package, it is returned. If no such symbol is accessible in package, a new symbol with the given name is created and entered into package as an internal symbol, or as an external symbol if the package is the KEYWORD package; package becomes the home package of the created symbol.
+ * @brief intern enters a symbol named string into package.
  *
- * The first value returned by intern, symbol, is the symbol that was found or created. The meaning of the secondary value, status, is as follows:
+ * <p>intern enters a symbol named string into package. If a symbol whose name is the same as string is already accessible in package, it is returned. If no such symbol is accessible in package, a new symbol with the given name is created and entered into package as an internal symbol, or as an external symbol if the package is the KEYWORD package; package becomes the home package of the created symbol.</p>
+ *
+ * <p>The first value returned by intern, symbol, is the symbol that was found or created. The meaning of the secondary value, status, is as follows:</p>
  *
  * :internal
  * The symbol was found and is present in package as an internal symbol.
@@ -63,5 +65,67 @@ void export_symbol(MalValue *package, MalValue *symbol);
  * nil
  * No pre-existing symbol was found, so one was created.
  * It is implementation-dependent whether the string that becomes the new symbol's name is the given string or a copy of it. Once a string has been given as the string argument to intern in this situation where a new symbol is created, the consequences are undefined if a subsequent attempt is made to alter that string.
+ *
+ * Examples:
+ *
+ * (in-package "COMMON-LISP-USER") =>  #<PACKAGE "COMMON-LISP-USER">
+ * (intern "Never-Before") =>  |Never-Before|, NIL
+ * (intern "Never-Before") =>  |Never-Before|, :INTERNAL
+ * (intern "NEVER-BEFORE" "KEYWORD") =>  :NEVER-BEFORE, NIL
+ * (intern "NEVER-BEFORE" "KEYWORD") =>  :NEVER-BEFORE, :EXTERNAL
+ *
+ * @param package
+ * @param symbol
+ * @return MalValue*
  */
-void intern_symbol(MalValue *package, MalValue *symbol);
+MalValue *intern_symbol(MalValue *package, MalValue *symbol);
+
+/**
+ * @brief  find-symbol locates a symbol whose name is string in a package.
+ * 
+ * find-symbol locates a symbol whose name is string in a package. If a symbol named string is found in package, directly or by inheritance, the symbol found is returned as the first value; the second value is as follows:
+ *
+ * :internal
+ * If the symbol is present in package as an internal symbol.
+ * :external
+ * If the symbol is present in package as an external symbol.
+ * :inherited
+ * If the symbol is inherited by package through use-package, but is not present in package.
+ * If no such symbol is accessible in package, both values are nil.
+ *
+ * Examples:
+ * {code}
+ * (find-symbol "NEVER-BEFORE-USED") =>  NIL, NIL
+ * (find-symbol "NEVER-BEFORE-USED") =>  NIL, NIL
+ * (intern "NEVER-BEFORE-USED") =>  NEVER-BEFORE-USED, NIL
+ * (intern "NEVER-BEFORE-USED") =>  NEVER-BEFORE-USED, :INTERNAL
+ * (find-symbol "NEVER-BEFORE-USED") =>  NEVER-BEFORE-USED, :INTERNAL
+ * (find-symbol "never-before-used") =>  NIL, NIL
+ * (find-symbol "CAR" 'common-lisp-user) =>  CAR, :INHERITED
+ * (find-symbol "CAR" 'common-lisp) =>  CAR, :EXTERNAL
+ * (find-symbol "NIL" 'common-lisp-user) =>  NIL, :INHERITED
+ * (find-symbol "NIL" 'common-lisp) =>  NIL, :EXTERNAL
+ * (find-symbol "NIL" (prog1 (make-package "JUST-TESTING" :use '())
+ *                         (intern "NIL" "JUST-TESTING")))
+ * =>  JUST-TESTING::NIL, :INTERNAL
+ * (export 'just-testing::nil 'just-testing)
+ * (find-symbol "NIL" 'just-testing) =>  JUST-TESTING:NIL, :EXTERNAL
+ * (find-symbol "NIL" "KEYWORD")
+ * =>  NIL, NIL
+ * OR=>  :NIL, :EXTERNAL
+ * (find-symbol (symbol-name :nil) "KEYWORD") =>  :NIL, :EXTERNAL
+ * {code}
+ * 
+ * @param symbol_name name of symbol
+ * @param package packge to find symbol in
+ * @return MalValue* 
+ */
+MalValue *find_symbol(const char *symbol_name, MalValue *package);
+
+/**
+ * @brief 
+ * 
+ * @param keyword_name 
+ * @return MalValue* 
+ */
+MalValue *make_keyword(const char *keyword_name);

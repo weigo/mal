@@ -168,10 +168,6 @@ void hashmap_delete(HashMap *map, const char *key)
 
 const char *hashmap_put(HashMap *map, enum MalValueType keyType, const char *key, void *value)
 {
-    assert(keyType == MAL_STRING || keyType == MAL_KEYWORD || keyType == MAL_SYMBOL ||
-           keyType == MAL_ATOM || keyType == MAL_TYPE_FALSE || keyType == MAL_TYPE_NIL ||
-           keyType == MAL_TYPE_TRUE);
-
     // If length will exceed half of current capacity, expand it.
     if (map->length >= map->capacity / 2)
     {

@@ -149,38 +149,50 @@ enum TokenType next_token(Reader *reader)
         reader->input++;
         break;
     case '"':
+    {
         reader->input++;
+        char *end = NULL;
 
-        while ((ch = *reader->input) && '\0' != ch)
+        while ((end = strchr(reader->input, '"')))
         {
-            if ('\\' == ch)
-            {
-                char next = peek(reader->input);
+            char *back_ptr = end - 1;
 
-                if ('"' == next || '\\' == next)
+            if (*back_ptr == '\\')
+            {
+                while (*back_ptr == '\\')
                 {
-                    reader->input++;
+                    back_ptr--;
                 }
+
+                unsigned int quotes = (end - 1) - back_ptr;
+
+                if (quotes % 2 == 1)
+                { // odd, means " not quoted
+                    reader->input = end + 1;
+                    continue;
+                }
+
+                break;
             }
-            else if ('"' == ch)
+            else
             {
                 break;
             }
-
-            reader->input++;
         }
 
-        if ('"' == ch)
+        if (end)
         {
-            // do not include leading and trailing '"'
-            fill_token(reader->token, TOKEN_STRING, start + 1, (reader->input - 1) - start);
-            reader->input++;
+            fill_token(reader->token, TOKEN_STRING, start + 1, (end - 1) - start);
+            reader->input = end + 1;
         }
         else
         {
-            fill_token(reader->token, TOKEN_UNBALANCED_STRING, start, (reader->input) - start);
+            unsigned int len = strlen(start);
+            fill_token(reader->token, TOKEN_UNBALANCED_STRING, start, len);
+            reader->input += len;
         }
-        break;
+    }
+    break;
     case '-':
     case '+':
     {
@@ -348,7 +360,7 @@ MalValue *read_atom(Token *token)
     default:
         if (':' == *token->value)
         {
-            value = make_value(MAL_KEYWORD, token->value);
+            value = make_keyword(token->value);
         }
         else if (strcmp("nil", token->value) == 0)
         {
@@ -468,13 +480,18 @@ MalValue *read_form(Reader *reader, bool readNextToken)
     case TOKEN_RIGHT_PAREN:
     case TOKEN_RIGHT_BRACKET:
     case TOKEN_RIGHT_BRACE:
+        value = make_error("unhandled closing '%s'", reader->token->value);
+        break;
     case TOKEN_KOMMA:
+        value = make_error("unhandled '%s'", reader->token->value);
+        break;
     case TOKEN_COMMENT:
-        value =  make_value(MAL_COMMENT, reader->token->value);
+        value = make_value(MAL_COMMENT, reader->token->value);
         break;
     case TOKEN_CARET:
         value = read_with_metadata(reader);
         break;
+    case TOKEN_DOUBLE_BACK_SLASH:
     default:
         value = read_atom(reader->token);
     }

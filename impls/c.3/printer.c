@@ -146,6 +146,21 @@ void pr_str_internal(MalPrintBuf *buffer, MalValue *value, bool readably)
         mal_strcat(buffer, value->symbol->name);
         break;
 
+    case MAL_MULTI_VALUE:
+        MalCell *current = value->list;
+
+        while (current)
+        {
+            pr_str_internal(buffer, current->value, readably);
+
+            if (current->cdr) {
+                mal_strcat(buffer, ", ");
+            }
+
+            current = current->cdr;
+        }
+        break;
+
     default:
         mal_strcat(buffer, value->value);
         break;
